@@ -29,6 +29,7 @@ public class GameManager : NetworkBehaviour
         {
             LobbyManager.GameMode.Classic3x3 => "Classic 3x3",
             LobbyManager.GameMode.PyramidXO => "Pyramid XO",
+            LobbyManager.GameMode.Board4x4 => "Board_4x4",
             _ => "Classic 3x3"
         };
 
@@ -147,6 +148,13 @@ public class GameManager : NetworkBehaviour
         if (gridSpawner != null && boardConfig != null)
         {
             gridSpawner.SpawnGrid(boardConfig);
+        }
+
+        // Notify the visual manager to refresh its cached config
+        GameVisualManager visualManager = FindObjectOfType<GameVisualManager>();
+        if (visualManager != null)
+        {
+            visualManager.RefreshBoardConfig();
         }
     }
 

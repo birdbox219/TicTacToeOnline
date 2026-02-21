@@ -49,46 +49,106 @@ public class GridSpawner : MonoBehaviour
     }
 
     /// <summary>
-    /// Spawn the # pattern lines between grid cells.
-    /// For an NxM grid, there are (N-1) vertical lines and (M-1) horizontal lines.
+    /// Spawn cell-border grid lines. Each valid cell gets borders on all 4 sides.
+    /// Shared edges between adjacent valid cells are merged into single line segments.
+    /// This correctly handles any board shape (pyramid, diamond, rectangular, etc).
     /// </summary>
     private void SpawnGridLines(BoardConfig config, float offsetX, float offsetY)
     {
         if (gridLinePrefab == null) return;
 
-        float lineLength = config.height * config.cellSpacing;
-        float lineWidth = config.width * config.cellSpacing;
+        // Helper: is this cell valid? Out-of-bounds = false
+        bool IsValid(int cx, int cy) =>
+            cx >= 0 && cx < config.width && cy >= 0 && cy < config.height && config.IsCellValid(cx, cy);
 
-        // Vertical lines (between columns)
-        for (int x = 0; x < config.width - 1; x++)
+        // ── Horizontal edge segments ──
+        // For each y boundary (0 to height): draw an edge where at least one
+        // adjacent cell (above or below) is valid. Merge consecutive x into runs.
+        for (int y = 0; y <= config.height; y++)
         {
-            float xPos = (x + 0.5f) * config.cellSpacing - offsetX;
-            float yPos = 0f; // centered
+            int runStart = -1;
+            for (int x = 0; x <= config.width; x++)
+            {
+                bool edgeExists = x < config.width && (IsValid(x, y - 1) || IsValid(x, y));
 
-            GameObject line = Instantiate(gridLinePrefab, new Vector3(xPos, yPos, 0f), Quaternion.Euler(0, 0, 90f), transform);
-            line.name = $"GridLine_V_{x}";
+                if (edgeExists && runStart < 0)
+                {
+                    runStart = x;
+                }
+                else if (!edgeExists && runStart >= 0)
+                {
+                    SpawnBorderSegment(config, offsetX, offsetY, runStart, x - 1, y, false);
+                    runStart = -1;
+                }
+            }
+        }
 
-            // Scale to fit the grid height
-            float scaleX = lineLength / GetLineSpriteBaseWidth(line);
-            if (scaleX > 0)
-                line.transform.localScale = new Vector3(scaleX, 1f, 1f);
+        // ── Vertical edge segments ──
+        // For each x boundary (0 to width): draw an edge where at least one
+        // adjacent cell (left or right) is valid. Merge consecutive y into runs.
+        for (int x = 0; x <= config.width; x++)
+        {
+            int runStart = -1;
+            for (int y = 0; y <= config.height; y++)
+            {
+                bool edgeExists = y < config.height && (IsValid(x - 1, y) || IsValid(x, y));
+
+                if (edgeExists && runStart < 0)
+                {
+                    runStart = y;
+                }
+                else if (!edgeExists && runStart >= 0)
+                {
+                    SpawnBorderSegment(config, offsetX, offsetY, runStart, y - 1, x, true);
+                    runStart = -1;
+                }
+            }
+        }
+    }
+
+    /// <summary>
+    /// Spawn a single border edge segment.
+    /// - Horizontal: at y boundary, spanning cells runStart..runEnd in x
+    /// - Vertical:   at x boundary, spanning cells runStart..runEnd in y
+    /// </summary>
+    private void SpawnBorderSegment(BoardConfig config, float offsetX, float offsetY,
+        int runStart, int runEnd, int boundary, bool isVertical)
+    {
+        float spacing = config.cellSpacing;
+
+        if (isVertical)
+        {
+            // Vertical edge at column boundary 'boundary' (between col boundary-1 and col boundary)
+            // Spans cells runStart..runEnd in y direction
+            float xPos = (boundary - 0.5f) * spacing - offsetX;
+            float yCenter = ((runStart + runEnd) / 2f) * spacing - offsetY;
+            float segmentLength = (runEnd - runStart + 1) * spacing;
+
+            GameObject line = Instantiate(gridLinePrefab, new Vector3(xPos, yCenter, 0f),
+                Quaternion.Euler(0, 0, 90f), transform);
+            line.name = $"Border_V_x{boundary}_y{runStart}to{runEnd}";
+
+            float baseWidth = GetLineSpriteBaseWidth(line);
+            if (baseWidth > 0)
+                line.transform.localScale = new Vector3(segmentLength / baseWidth, 1f, 1f);
 
             spawnedObjects.Add(line);
         }
-
-        // Horizontal lines (between rows)
-        for (int y = 0; y < config.height - 1; y++)
+        else
         {
-            float xPos = 0f; // centered
-            float yPos = (y + 0.5f) * config.cellSpacing - offsetY;
+            // Horizontal edge at row boundary 'boundary' (between row boundary-1 and row boundary)
+            // Spans cells runStart..runEnd in x direction
+            float yPos = (boundary - 0.5f) * spacing - offsetY;
+            float xCenter = ((runStart + runEnd) / 2f) * spacing - offsetX;
+            float segmentLength = (runEnd - runStart + 1) * spacing;
 
-            GameObject line = Instantiate(gridLinePrefab, new Vector3(xPos, yPos, 0f), Quaternion.identity, transform);
-            line.name = $"GridLine_H_{y}";
+            GameObject line = Instantiate(gridLinePrefab, new Vector3(xCenter, yPos, 0f),
+                Quaternion.identity, transform);
+            line.name = $"Border_H_y{boundary}_x{runStart}to{runEnd}";
 
-            // Scale to fit the grid width
-            float scaleX = lineWidth / GetLineSpriteBaseWidth(line);
-            if (scaleX > 0)
-                line.transform.localScale = new Vector3(scaleX, 1f, 1f);
+            float baseWidth = GetLineSpriteBaseWidth(line);
+            if (baseWidth > 0)
+                line.transform.localScale = new Vector3(segmentLength / baseWidth, 1f, 1f);
 
             spawnedObjects.Add(line);
         }

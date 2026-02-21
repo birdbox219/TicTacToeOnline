@@ -1,4 +1,4 @@
-using System.Collections;
+﻿using System.Collections;
 using System.Collections.Generic;
 using TMPro;
 using UnityEngine;
@@ -73,6 +73,9 @@ public class LobbyCreateUI : MonoBehaviour {
                     gameMode = LobbyManager.GameMode.PyramidXO;
                     break;
                 case LobbyManager.GameMode.PyramidXO:
+                    gameMode = LobbyManager.GameMode.Board4x4;
+                    break;
+                case LobbyManager.GameMode.Board4x4:
                     gameMode = LobbyManager.GameMode.Classic3x3;
                     break;
             }

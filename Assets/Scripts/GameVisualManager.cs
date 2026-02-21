@@ -15,6 +15,7 @@ public class GameVisualManager : NetworkBehaviour
     private float cellSpacing = 3.1f;
     private float offsetX;
     private float offsetY;
+    private bool configCached = false;
 
     private void Awake()
     {
@@ -23,13 +24,24 @@ public class GameVisualManager : NetworkBehaviour
 
     private void Start()
     {
-        // Cache board config values for positioning
-        BoardConfig config = GameManager.instance.ActiveBoardConfig;
+        GameManager.instance.OnClickOnGridPosition += GameManager_OnClickOnGridPosition;
+        GameManager.instance.OnGameWin += Instance_OnGameWin;
+        GameManager.instance.OnRematch += Instance_OnRematch;
+    }
+
+    /// <summary>
+    /// Called by GameManager after InitializeBoard() to sync the visual config.
+    /// Also called lazily on first use of GetWorldPosition.
+    /// </summary>
+    public void RefreshBoardConfig()
+    {
+        BoardConfig config = GameManager.instance?.ActiveBoardConfig;
         if (config != null)
         {
             cellSpacing = config.cellSpacing;
             offsetX = (config.width - 1) * cellSpacing / 2f;
             offsetY = (config.height - 1) * cellSpacing / 2f;
+            configCached = true;
         }
         else
         {
@@ -38,10 +50,6 @@ public class GameVisualManager : NetworkBehaviour
             offsetX = (3 - 1) * cellSpacing / 2f;
             offsetY = (3 - 1) * cellSpacing / 2f;
         }
-
-        GameManager.instance.OnClickOnGridPosition += GameManager_OnClickOnGridPosition;
-        GameManager.instance.OnGameWin += Instance_OnGameWin;
-        GameManager.instance.OnRematch += Instance_OnRematch;
     }
 
     private void Instance_OnRematch(object sender, System.EventArgs e)
@@ -152,9 +160,13 @@ public class GameVisualManager : NetworkBehaviour
     /// <summary>
     /// Dynamic world position calculation based on BoardConfig.
     /// Centers the grid around (0, 0) for any board size.
+    /// Lazily caches config on first call.
     /// </summary>
     private Vector2 GetWorldPosition(int x, int y)
     {
+        if (!configCached)
+            RefreshBoardConfig();
+
         return new Vector2(x * cellSpacing - offsetX, y * cellSpacing - offsetY);
     }
 }
