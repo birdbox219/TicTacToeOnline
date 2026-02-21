@@ -543,4 +543,15 @@ public class GameManager : NetworkBehaviour
         playerCrossScore = this.playerCrossScore.Value;
         playerCircleScore = this.playerCircleScore.Value;
     }
+
+
+    public bool IsCellEmpty(int x, int y)
+    {
+        // Safety check to ensure we don't go out of bounds
+        if (playerTypeArray == null) return false;
+        if (x < 0 || x >= playerTypeArray.GetLength(0) || y < 0 || y >= playerTypeArray.GetLength(1)) return false;
+
+        // Return true if the cell is completely empty
+        return playerTypeArray[x, y] == PlayerType.None;
+    }
 }
