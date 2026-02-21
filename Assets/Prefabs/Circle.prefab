@@ -98,6 +98,7 @@ GameObject:
   - component: {fileID: 7960999091729936084}
   - component: {fileID: -6447439648736631637}
   - component: {fileID: -8620462610120564849}
+  - component: {fileID: 6537110927164450190}
   m_Layer: 0
   m_Name: Circle
   m_TagString: Untagged
@@ -192,3 +193,17 @@ MonoBehaviour:
   SwitchTransformSpaceWhenParented: 0
   Interpolate: 1
   SlerpPosition: 0
+--- !u!114 &6537110927164450190
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7648783419902409101}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: cf652fa80a4a9bd41afb76424589614a, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  ShowTopMostFoldoutHeaderGroup: 1
+  visualTransform: {fileID: 8639389465272939863}
