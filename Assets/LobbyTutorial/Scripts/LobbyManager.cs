@@ -39,8 +39,8 @@ public class LobbyManager : MonoBehaviour {
 
 
     public enum GameMode {
-        CaptureTheFlag,
-        Conquest
+        Classic3x3,
+        PyramidXO
     }
 
     public enum PlayerCharacter {
@@ -50,6 +50,9 @@ public class LobbyManager : MonoBehaviour {
     }
 
 
+
+    // ── Static game mode selection (survives scene transitions) ──
+    public static GameMode SelectedGameMode { get; private set; } = GameMode.Classic3x3;
 
     private float heartbeatTimer;
     private float lobbyPollTimer;
@@ -155,6 +158,13 @@ public class LobbyManager : MonoBehaviour {
                 // Check if the game has been started by the Host
                 if (joinedLobby.Data.ContainsKey(KEY_START_GAME) && joinedLobby.Data[KEY_START_GAME].Value != "0")
                 {
+                    // Save the selected GameMode before clearing the lobby
+                    if (joinedLobby.Data.ContainsKey(KEY_GAME_MODE))
+                    {
+                        SelectedGameMode = Enum.Parse<GameMode>(joinedLobby.Data[KEY_GAME_MODE].Value);
+                        Debug.Log($"LobbyManager: SelectedGameMode set to {SelectedGameMode}");
+                    }
+
                     // Game has been started, the value of KEY_START_GAME is the relay code
                     if (!IsLobbyHost())
                     {
@@ -203,11 +213,11 @@ public class LobbyManager : MonoBehaviour {
 
             switch (gameMode) {
                 default:
-                case GameMode.CaptureTheFlag:
-                    gameMode = GameMode.Conquest;
+                case GameMode.Classic3x3:
+                    gameMode = GameMode.PyramidXO;
                     break;
-                case GameMode.Conquest:
-                    gameMode = GameMode.CaptureTheFlag;
+                case GameMode.PyramidXO:
+                    gameMode = GameMode.Classic3x3;
                     break;
             }
 
@@ -402,6 +412,15 @@ public class LobbyManager : MonoBehaviour {
             try
             {
                 Debug.Log("StartGame");
+
+                // Set the selected game mode BEFORE creating relay
+                // so it's available when OnNetworkSpawn fires
+                if (joinedLobby.Data.ContainsKey(KEY_GAME_MODE))
+                {
+                    SelectedGameMode = Enum.Parse<GameMode>(joinedLobby.Data[KEY_GAME_MODE].Value);
+                    Debug.Log($"LobbyManager Host: SelectedGameMode set to {SelectedGameMode}");
+                }
+
                 string relayCode = await RelayServiceGame.Instance.CreateRelay();
 
                 Lobby lobby = await LobbyService.Instance.UpdateLobbyAsync(joinedLobby.Id, new UpdateLobbyOptions

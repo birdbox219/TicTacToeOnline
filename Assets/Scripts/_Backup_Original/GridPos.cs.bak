@@ -3,21 +3,11 @@ using UnityEngine.EventSystems;
 
 public class GridPos : MonoBehaviour, IPointerDownHandler
 {
+
+    
+
     [SerializeField] private int x;
     [SerializeField] private int y;
-
-    /// <summary>
-    /// Initialize grid position at runtime (used by GridSpawner).
-    /// </summary>
-    public void Initialize(int x, int y)
-    {
-        this.x = x;
-        this.y = y;
-    }
-
-    public int X => x;
-    public int Y => y;
-
     public void OnPointerDown(PointerEventData eventData)
     {
         Debug.Log($"Grid Position Clicked: {gameObject.name} at ({x} , {y})");
