@@ -17,4 +17,4 @@ MonoBehaviour:
   height: 4
   winLength: 4
   cellSpacing: 3.1
-  validCells: 010101010101010101010101
+  validCells: 01010101010101010101010101010101
