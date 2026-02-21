@@ -10,8 +10,8 @@ public class SpawnAnimation : NetworkBehaviour
     [Tooltip("Drag the SpriteRenderer of the child visual here")]
     [SerializeField] private SpriteRenderer spriteRenderer;
 
-    //TO be impleneted in the future when we have particle effects ready, for now it just looks weird and out of place
-    //[SerializeField] private ParticleSystem impactParticles;
+    // TO be implemented in the future when we have particle effects ready, for now it just looks weird and out of place
+    // [SerializeField] private ParticleSystem impactParticles;
 
     private Vector3 targetScale;
 
@@ -40,52 +40,65 @@ public class SpawnAnimation : NetworkBehaviour
             .SetRelative(true)
             .SetEase(Ease.OutCubic);
 
-        // This punches the whole object slightly downwards on the Z or Y axis 
-        // (depending on if your game is 2D top-down or 3D) and makes it vibrate to a stop.
-        // Assuming 2D, let's punch it slightly back on the Z axis:
-        transform.DOPunchPosition(new Vector3(0, 0, 0.5f), duration: 0.4f, vibrato: 5, elasticity: 0.5f);
+        // [FIXED] Punch the local position of the visual child, not the networked parent!
+        visualTransform.DOPunchPosition(new Vector3(0, 0, 0.5f), duration: 0.4f, vibrato: 5, elasticity: 0.5f);
 
-        // 3. The Pop-in: Scale the VISUAL from 0 up to its target scale
-        visualTransform.DOScale(targetScale, 0.6f)
-            .SetEase(Ease.OutBack);
-
-
+        // 3. The Color Flash
         if (spriteRenderer != null)
         {
-            // Save the target color (e.g., Red for Cross, Blue for Circle)
             Color targetColor = spriteRenderer.color;
-
-            // Instantly turn it pure white
-            spriteRenderer.color = Color.white;
-
-            // Fade it back to its actual color over 0.4 seconds
+            spriteRenderer.color = Color.red;
             spriteRenderer.DOColor(targetColor, 0.4f).SetEase(Ease.OutFlash);
         }
 
-
-
+        // 4. Camera Shake
         if (Camera.main != null)
         {
             Camera.main.DOComplete(); // Stops any active shakes so they don't stack wildly
             Camera.main.DOShakePosition(0.15f, strength: 0.2f, vibrato: 10, randomness: 90);
         }
 
-        //visualTransform.DOScale(targetScale, 0.6f)
-        //    .SetEase(Ease.OutBack)
-        //    .OnComplete(() =>
-        //    {
-        //        if (impactParticles != null)
-        //        {
-        //            impactParticles.Play();
-        //        }
-        //    });
+        // 5. The Pop-in AND Breathing Loop [FIXED]
+        // We chain the breathing loop so it only starts AFTER the pop-in is 100% finished.
+        visualTransform.DOScale(targetScale, 0.6f)
+            .SetEase(Ease.OutBack)
+            .OnComplete(() =>
+            {
+                // --- Future Particles ---
+                // if (impactParticles != null)
+                // {
+                //     impactParticles.Play();
+                // }
+
+                // Start the subtle breathing loop
+                visualTransform.DOScale(targetScale * 1.05f, 1.5f)
+                    .SetLoops(-1, LoopType.Yoyo) // -1 means infinite loops
+                    .SetEase(Ease.InOutSine); // Super smooth in and out
+            });
+    }
 
 
+    [Rpc(SendTo.ClientsAndHost)]
+    public void PlayWinSequenceRpc(float delay)
+    {
+        // DOVirtual.DelayedCall lets us wait for the exact moment the line touches this piece
+        DOVirtual.DelayedCall(delay, () =>
+        {
+            if (visualTransform != null)
+            {
+                // 1. Kill the infinite breathing loop so it doesn't fight our animation
+                visualTransform.DOKill();
 
-        // Wait for the spawn animation to finish (0.6s), then start a subtle breathing loop
-        visualTransform.DOScale(targetScale * 1.05f, 1.5f)
-            .SetDelay(0.6f) // Wait for the pop-in to finish
-            .SetLoops(-1, LoopType.Yoyo) // -1 means infinite loops, Yoyo makes it go back and forth
-            .SetEase(Ease.InOutSine); // Super smooth in and out
+                // 2. Do a massive bouncy pop upwards
+                visualTransform.DOScale(targetScale * 1.4f, 0.2f).SetEase(Ease.OutBack)
+                    .OnComplete(() => visualTransform.DOScale(targetScale, 0.3f));
+
+                // 3. Flash the piece gold/yellow to highlight it!
+                if (spriteRenderer != null)
+                {
+                    spriteRenderer.DOColor(Color.yellow, 0.3f).SetEase(Ease.OutFlash);
+                }
+            }
+        });
     }
 }

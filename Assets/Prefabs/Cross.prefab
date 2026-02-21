@@ -207,3 +207,4 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   ShowTopMostFoldoutHeaderGroup: 1
   visualTransform: {fileID: 8639389465272939863}
+  spriteRenderer: {fileID: 5245947780756920421}

@@ -11,6 +11,7 @@ public class GameVisualManager : NetworkBehaviour
     [SerializeField] private Transform lineCompletePrefab;
 
     private List<GameObject> visualGameObjectList;
+    private Dictionary<Vector2Int, SpawnAnimation> pieceMap;
 
     // Cached board config values
     private float cellSpacing = 3.1f;
@@ -21,6 +22,7 @@ public class GameVisualManager : NetworkBehaviour
     private void Awake()
     {
         visualGameObjectList = new List<GameObject>();
+        pieceMap = new Dictionary<Vector2Int, SpawnAnimation>();
     }
 
     private void Start()
@@ -65,6 +67,8 @@ public class GameVisualManager : NetworkBehaviour
             Destroy(visualGameObject);
         }
         visualGameObjectList.Clear();
+
+        pieceMap.Clear();
     }
 
     private void Instance_OnGameWin(object sender, GameManager.OnGameWinEventArgs e)
@@ -98,6 +102,26 @@ public class GameVisualManager : NetworkBehaviour
 
         lineCompleteTransform.GetComponent<NetworkObject>().Spawn();
         visualGameObjectList.Add(lineCompleteTransform.gameObject);
+
+
+
+        float lineDrawTime = 3f;
+
+        for (int i = 0; i < e.line.gridVector2Int.Count; i++)
+        {
+            Vector2Int gridPos = e.line.gridVector2Int[i];
+
+            // Find the piece at this winning coordinate
+            if (pieceMap.TryGetValue(gridPos, out SpawnAnimation piece))
+            {
+                // Calculate the exact delay so it pops when the line hits it
+                float delay = i * (lineDrawTime / (e.line.gridVector2Int.Count - 1));
+
+                // Tell all clients to play the animation for this specific piece
+                piece.PlayWinSequenceRpc(delay);
+            }
+        }
+
     }
 
     /// <summary>
@@ -156,6 +180,13 @@ public class GameVisualManager : NetworkBehaviour
         Transform spawnedTransform = Instantiate(prefab, GetWorldPosition(x, y), Quaternion.identity);
         spawnedTransform.GetComponent<NetworkObject>().Spawn();
         visualGameObjectList.Add(spawnedTransform.gameObject);
+
+
+        SpawnAnimation spawnAnim = spawnedTransform.GetComponent<SpawnAnimation>();
+        if (spawnAnim != null)
+        {
+            pieceMap[new Vector2Int(x, y)] = spawnAnim;
+        }
     }
 
     /// <summary>
