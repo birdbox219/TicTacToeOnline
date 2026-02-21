@@ -7,6 +7,12 @@ public class SpawnAnimation : NetworkBehaviour
     [Tooltip("Drag the child GameObject containing the Sprite/Mesh here")]
     [SerializeField] private Transform visualTransform;
 
+    [Tooltip("Drag the SpriteRenderer of the child visual here")]
+    [SerializeField] private SpriteRenderer spriteRenderer;
+
+    //TO be impleneted in the future when we have particle effects ready, for now it just looks weird and out of place
+    //[SerializeField] private ParticleSystem impactParticles;
+
     private Vector3 targetScale;
 
     private void Awake()
@@ -34,9 +40,27 @@ public class SpawnAnimation : NetworkBehaviour
             .SetRelative(true)
             .SetEase(Ease.OutCubic);
 
+        // This punches the whole object slightly downwards on the Z or Y axis 
+        // (depending on if your game is 2D top-down or 3D) and makes it vibrate to a stop.
+        // Assuming 2D, let's punch it slightly back on the Z axis:
+        transform.DOPunchPosition(new Vector3(0, 0, 0.5f), duration: 0.4f, vibrato: 5, elasticity: 0.5f);
+
         // 3. The Pop-in: Scale the VISUAL from 0 up to its target scale
         visualTransform.DOScale(targetScale, 0.6f)
             .SetEase(Ease.OutBack);
+
+
+        if (spriteRenderer != null)
+        {
+            // Save the target color (e.g., Red for Cross, Blue for Circle)
+            Color targetColor = spriteRenderer.color;
+
+            // Instantly turn it pure white
+            spriteRenderer.color = Color.white;
+
+            // Fade it back to its actual color over 0.4 seconds
+            spriteRenderer.DOColor(targetColor, 0.4f).SetEase(Ease.OutFlash);
+        }
 
 
 
@@ -45,6 +69,16 @@ public class SpawnAnimation : NetworkBehaviour
             Camera.main.DOComplete(); // Stops any active shakes so they don't stack wildly
             Camera.main.DOShakePosition(0.15f, strength: 0.2f, vibrato: 10, randomness: 90);
         }
+
+        //visualTransform.DOScale(targetScale, 0.6f)
+        //    .SetEase(Ease.OutBack)
+        //    .OnComplete(() =>
+        //    {
+        //        if (impactParticles != null)
+        //        {
+        //            impactParticles.Play();
+        //        }
+        //    });
 
 
 
