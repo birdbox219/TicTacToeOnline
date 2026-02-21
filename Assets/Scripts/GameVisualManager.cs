@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using DG.Tweening;
+using System.Collections.Generic;
 using System.Linq;
 using Unity.Netcode;
 using UnityEngine;
@@ -30,7 +31,13 @@ public class GameVisualManager : NetworkBehaviour
         GameManager.instance.OnClickOnGridPosition += GameManager_OnClickOnGridPosition;
         GameManager.instance.OnGameWin += Instance_OnGameWin;
         GameManager.instance.OnRematch += Instance_OnRematch;
+
+
+        //FadingXO
+        GameManager.instance.OnPieceRemoved += Instance_OnPieceRemoved;
     }
+
+    
 
     /// <summary>
     /// Called by GameManager after InitializeBoard() to sync the visual config.
@@ -200,5 +207,24 @@ public class GameVisualManager : NetworkBehaviour
             RefreshBoardConfig();
 
         return new Vector2(x * cellSpacing - offsetX, y * cellSpacing - offsetY);
+    }
+
+
+    //FAdingXO: New method to handle piece removal with animation
+    private void Instance_OnPieceRemoved(object sender, Vector2Int gridPos)
+    {
+        if (pieceMap.TryGetValue(gridPos, out SpawnAnimation pieceAnim))
+        {
+            // Remove it from tracking
+            pieceMap.Remove(gridPos);
+            visualGameObjectList.Remove(pieceAnim.gameObject);
+
+            // Make it shrink and spin out of existence, then destroy it!
+            pieceAnim.transform.DOScale(Vector3.zero, 0.4f).SetEase(Ease.InBack);
+            pieceAnim.transform.DORotate(new Vector3(0, 0, -180), 0.4f, RotateMode.FastBeyond360).SetRelative(true);
+
+            // Wait for the animation to finish before actually deleting the GameObject
+            Destroy(pieceAnim.gameObject, 0.45f);
+        }
     }
 }

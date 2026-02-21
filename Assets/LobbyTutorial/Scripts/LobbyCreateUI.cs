@@ -76,6 +76,9 @@ public class LobbyCreateUI : MonoBehaviour {
                     gameMode = LobbyManager.GameMode.Board4x4;
                     break;
                 case LobbyManager.GameMode.Board4x4:
+                    gameMode = LobbyManager.GameMode.FadingXO;
+                    break;
+                case LobbyManager.GameMode.FadingXO:
                     gameMode = LobbyManager.GameMode.Classic3x3;
                     break;
             }

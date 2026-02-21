@@ -3191,6 +3191,7 @@ MonoBehaviour:
   - {fileID: 11400000, guid: 6182c64a90f28d943aef46d539812158, type: 2}
   - {fileID: 11400000, guid: ba1a99ac5375715428e24ea9dbe1a205, type: 2}
   - {fileID: 11400000, guid: 2ec69dc9a56f8d84da531533c95c7fa1, type: 2}
+  - {fileID: 11400000, guid: 9733e229ff27987459e51cdc4238c05c, type: 2}
   gridSpawner: {fileID: 1664323549}
 --- !u!4 &1880486172
 Transform:

@@ -41,7 +41,8 @@ public class LobbyManager : MonoBehaviour {
     public enum GameMode {
         Classic3x3,
         PyramidXO,
-        Board4x4
+        Board4x4,
+        FadingXO
     }
 
     public enum PlayerCharacter {
@@ -221,6 +222,9 @@ public class LobbyManager : MonoBehaviour {
                     gameMode = GameMode.Board4x4;
                     break;
                 case GameMode.Board4x4:
+                    gameMode = GameMode.FadingXO;
+                    break;
+                case GameMode.FadingXO:
                     gameMode = GameMode.Classic3x3;
                     break;
             }

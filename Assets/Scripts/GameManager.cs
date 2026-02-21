@@ -30,6 +30,7 @@ public class GameManager : NetworkBehaviour
             LobbyManager.GameMode.Classic3x3 => "Classic 3x3",
             LobbyManager.GameMode.PyramidXO => "Pyramid XO",
             LobbyManager.GameMode.Board4x4 => "Board_4x4",
+            LobbyManager.GameMode.FadingXO => "Fading XO",
             _ => "Classic 3x3"
         };
 
@@ -64,6 +65,14 @@ public class GameManager : NetworkBehaviour
             this.y = y;
         }
     }
+
+    //FadingXO
+    private Queue<Vector2Int> crossPieceQueue = new Queue<Vector2Int>();
+    private Queue<Vector2Int> circlePieceQueue = new Queue<Vector2Int>();
+
+    public event EventHandler<Vector2Int> OnPieceRemoved;
+    //FadingXO
+
 
     public event EventHandler OnGameStarted;
     public event EventHandler OnCurrentPlayblePlayerTypeChanged;
@@ -392,6 +401,31 @@ public class GameManager : NetworkBehaviour
         playerTypeArray[x, y] = playerType;
         TriggerOnPlaceObjectRpc();
 
+
+        // ==========================================
+        // --- NEW: Fading XO Cleanup Phase ---
+        // ==========================================
+        bool isFadingMode = (boardConfig != null && boardConfig.modeName == "Fading XO");
+
+        if (isFadingMode)
+        {
+            Queue<Vector2Int> activeQueue = (playerType == PlayerType.Cross) ? crossPieceQueue : circlePieceQueue;
+            activeQueue.Enqueue(new Vector2Int(x, y));
+
+            // If they just placed their 4th piece, remove their 1st piece!
+            if (activeQueue.Count > 3)
+            {
+                Vector2Int oldestPiece = activeQueue.Dequeue();
+
+                // Erase it from the server's brain so it can't win
+                playerTypeArray[oldestPiece.x, oldestPiece.y] = PlayerType.None;
+
+                // Tell all clients to visually delete it
+                TriggerOnPieceRemovedRpc(oldestPiece.x, oldestPiece.y);
+            }
+        }
+        // ==========================================
+
         OnClickOnGridPosition?.Invoke(this, new OnClickOnGridPositionEventArgs(x, y)
         {
             playerType = playerType
@@ -416,6 +450,12 @@ public class GameManager : NetworkBehaviour
     private void TriggerOnPlaceObjectRpc()
     {
         OnPlaceObject?.Invoke(this, EventArgs.Empty);
+    }
+
+    [Rpc(SendTo.ClientsAndHost)]
+    private void TriggerOnPieceRemovedRpc(int x, int y)
+    {
+        OnPieceRemoved?.Invoke(this, new Vector2Int(x, y));
     }
 
     /// <summary>
@@ -518,6 +558,11 @@ public class GameManager : NetworkBehaviour
                 playerTypeArray[x, y] = PlayerType.None;
             }
         }
+
+        crossPieceQueue.Clear();
+        circlePieceQueue.Clear();
+
+
         currentTurnPlayerType.Value = PlayerType.Cross;
         TriggerOnRematchRpc();
     }
