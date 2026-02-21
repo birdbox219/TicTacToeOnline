@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections;
 using System.Collections.Generic;
 using Unity.Services.Authentication;
@@ -16,6 +16,7 @@ public class LobbyManager : MonoBehaviour {
     public const string KEY_PLAYER_NAME = "PlayerName";
     public const string KEY_PLAYER_CHARACTER = "Character";
     public const string KEY_GAME_MODE = "GameMode";
+    public const string KEY_START_GAME = "StartGame";
 
 
 
@@ -25,6 +26,8 @@ public class LobbyManager : MonoBehaviour {
     public event EventHandler<LobbyEventArgs> OnJoinedLobbyUpdate;
     public event EventHandler<LobbyEventArgs> OnKickedFromLobby;
     public event EventHandler<LobbyEventArgs> OnLobbyGameModeChanged;
+    
+    public event EventHandler OnGameStarted;
     public class LobbyEventArgs : EventArgs {
         public Lobby lobby;
     }
@@ -54,13 +57,15 @@ public class LobbyManager : MonoBehaviour {
     private Lobby joinedLobby;
     private string playerName;
 
+    private bool isStartingGame = false;
+
 
     private void Awake() {
         Instance = this;
     }
 
     private void Update() {
-        //HandleRefreshLobbyList(); // Disabled Auto Refresh for testing with multiple builds
+        HandleRefreshLobbyList(); // Disabled Auto Refresh for testing with multiple builds
         HandleLobbyHeartbeat();
         HandleLobbyPolling();
     }
@@ -107,10 +112,13 @@ public class LobbyManager : MonoBehaviour {
         }
     }
 
-    private async void HandleLobbyPolling() {
-        if (joinedLobby != null) {
+    private async void HandleLobbyPolling()
+    {
+        if (joinedLobby != null)
+        {
             lobbyPollTimer -= Time.deltaTime;
-            if (lobbyPollTimer < 0f) {
+            if (lobbyPollTimer < 0f)
+            {
                 float lobbyPollTimerMax = 1.1f;
                 lobbyPollTimer = lobbyPollTimerMax;
 
@@ -118,17 +126,48 @@ public class LobbyManager : MonoBehaviour {
 
                 OnJoinedLobbyUpdate?.Invoke(this, new LobbyEventArgs { lobby = joinedLobby });
 
-                if (!IsPlayerInLobby()) {
+                if (!IsPlayerInLobby())
+                {
                     // Player was kicked out of this lobby
                     Debug.Log("Kicked from Lobby!");
 
                     OnKickedFromLobby?.Invoke(this, new LobbyEventArgs { lobby = joinedLobby });
 
                     joinedLobby = null;
+                    isStartingGame = false; // Unlock the game start lock in case we got kicked while trying to start the game
+                }
+
+
+                if (IsLobbyHost() && joinedLobby.Players.Count == joinedLobby.MaxPlayers)
+                {
+                    bool gameAlreadyStarted = joinedLobby.Data.ContainsKey(KEY_START_GAME) && joinedLobby.Data[KEY_START_GAME].Value != "0";
+
+                    // Check that the game hasn't started AND we aren't currently trying to start it
+                    if (!gameAlreadyStarted && !isStartingGame)
+                    {
+                        Debug.Log("Lobby is full! Auto-starting game...");
+                        isStartingGame = true; // Lock it! 
+                        StartGame();
+                    }
+                }
+                // -----------------------------
+
+                // Check if the game has been started by the Host
+                if (joinedLobby.Data.ContainsKey(KEY_START_GAME) && joinedLobby.Data[KEY_START_GAME].Value != "0")
+                {
+                    // Game has been started, the value of KEY_START_GAME is the relay code
+                    if (!IsLobbyHost())
+                    {
+                        RelayServiceGame.Instance.JoinRelay(joinedLobby.Data[KEY_START_GAME].Value);
+                    }
+
+                    joinedLobby = null;
+                    OnGameStarted?.Invoke(this, EventArgs.Empty);
                 }
             }
         }
     }
+    
 
     public Lobby GetJoinedLobby() {
         return joinedLobby;
@@ -183,7 +222,8 @@ public class LobbyManager : MonoBehaviour {
             Player = player,
             IsPrivate = isPrivate,
             Data = new Dictionary<string, DataObject> {
-                { KEY_GAME_MODE, new DataObject(DataObject.VisibilityOptions.Public, gameMode.ToString()) }
+                { KEY_GAME_MODE, new DataObject(DataObject.VisibilityOptions.Public, gameMode.ToString()) },
+                {KEY_START_GAME, new DataObject(DataObject.VisibilityOptions.Member, "0") }
             }
         };
 
@@ -317,6 +357,7 @@ public class LobbyManager : MonoBehaviour {
                 await LobbyService.Instance.RemovePlayerAsync(joinedLobby.Id, AuthenticationService.Instance.PlayerId);
 
                 joinedLobby = null;
+                isStartingGame = false; // Unlock the game start lock in case we left while trying to start the game
 
                 OnLeftLobby?.Invoke(this, EventArgs.Empty);
             } catch (LobbyServiceException e) {
@@ -350,6 +391,36 @@ public class LobbyManager : MonoBehaviour {
             OnLobbyGameModeChanged?.Invoke(this, new LobbyEventArgs { lobby = joinedLobby });
         } catch (LobbyServiceException e) {
             Debug.Log(e);
+        }
+    }
+
+
+    public async void StartGame()
+    {
+        if (IsLobbyHost())
+        {
+            try
+            {
+                Debug.Log("StartGame");
+                string relayCode = await RelayServiceGame.Instance.CreateRelay();
+
+                Lobby lobby = await LobbyService.Instance.UpdateLobbyAsync(joinedLobby.Id, new UpdateLobbyOptions
+                {
+                    Data = new Dictionary<string, DataObject> {
+                        { KEY_START_GAME, new DataObject(DataObject.VisibilityOptions.Member, relayCode) }
+                    }
+                });
+
+
+                joinedLobby = lobby;
+            }
+
+
+            catch (LobbyServiceException e)
+            {
+                Debug.Log(e);
+            }
+
         }
     }
 
