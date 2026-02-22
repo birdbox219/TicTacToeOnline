@@ -97,44 +97,62 @@ public class PlayerUI : MonoBehaviour
         string crossName = LobbyManager.CrossPlayerName;
         string circleName = LobbyManager.CirclePlayerName;
 
-        if(GameManager.instance.GetLocalplayerType() == GameManager.PlayerType.Cross)
+        //if(GameManager.instance.GetLocalplayerType() == GameManager.PlayerType.Cross)
+        //{
+        //    // Update the Cross name text
+        //    if (crossTouTextGameOject != null)
+        //    {
+
+
+
+
+        //        TextMeshProUGUI crossTmp = crossTouTextGameOject.GetComponentInChildren<TextMeshProUGUI>();
+        //        if (crossTmp != null)
+        //        {
+        //            crossTmp.text = crossName;
+        //            Debug.Log("Setting Cross Player Name: " + crossName);
+        //        }
+
+
+        //        crossTouTextGameOject.SetActive(true);
+
+        //    }
+        //}
+        //else if(GameManager.instance.GetLocalplayerType() == GameManager.PlayerType.Cricle)
+        //{
+        //    // Update the Circle name text
+        //    if (circleTouTextGameOject != null)
+        //    {
+        //        TextMeshProUGUI circleTmp = circleTouTextGameOject.GetComponentInChildren<TextMeshProUGUI>();
+        //        if (circleTmp != null)
+        //        {
+        //            circleTmp.text = circleName;
+        //            Debug.Log("Setting Circle Player Name: " + circleName);
+        //        }
+        //        circleTouTextGameOject.SetActive(true);
+        //    }
+        //}
+
+        if (crossTouTextGameOject != null)
         {
-            // Update the Cross name text
-            if (crossTouTextGameOject != null)
+            TextMeshProUGUI crossTmp = crossTouTextGameOject.GetComponentInChildren<TextMeshProUGUI>();
+            if (crossTmp != null)
             {
-
-
-
-
-                TextMeshProUGUI crossTmp = crossTouTextGameOject.GetComponentInChildren<TextMeshProUGUI>();
-                if (crossTmp != null)
-                {
-                    crossTmp.text = crossName;
-                    Debug.Log("Setting Cross Player Name: " + crossName);
-                }
-
-
-                crossTouTextGameOject.SetActive(true);
-
+                crossTmp.text = crossName;
             }
         }
-        else if(GameManager.instance.GetLocalplayerType() == GameManager.PlayerType.Cricle)
+
+        if (circleTouTextGameOject != null)
         {
-            // Update the Circle name text
-            if (circleTouTextGameOject != null)
+            TextMeshProUGUI circleTmp = circleTouTextGameOject.GetComponentInChildren<TextMeshProUGUI>();
+            if (circleTmp != null)
             {
-                TextMeshProUGUI circleTmp = circleTouTextGameOject.GetComponentInChildren<TextMeshProUGUI>();
-                if (circleTmp != null)
-                {
-                    circleTmp.text = circleName;
-                    Debug.Log("Setting Circle Player Name: " + circleName);
-                }
-                circleTouTextGameOject.SetActive(true);
+                circleTmp.text = circleName;
             }
         }
-        
 
-        
+
+
 
 
         circleScoreTextMesh.text = "0";
@@ -192,7 +210,10 @@ public class PlayerUI : MonoBehaviour
                 circleImage.DOColor(new Color(0.4f, 0.4f, 0.4f, 0.8f), 0.3f); // Grayed out
             }
 
-            
+            if (crossTouTextGameOject != null) crossTouTextGameOject.SetActive(true);
+            if (circleTouTextGameOject != null) circleTouTextGameOject.SetActive(false);
+
+
         }
 
 
@@ -212,7 +233,10 @@ public class PlayerUI : MonoBehaviour
                 crossImage.DOColor(new Color(0.4f, 0.4f, 0.4f, 0.8f), 0.3f);
             }
 
-            
+            if (circleTouTextGameOject != null) circleTouTextGameOject.SetActive(true);
+            if (crossTouTextGameOject != null) crossTouTextGameOject.SetActive(false);
+
+
         }
 
 
