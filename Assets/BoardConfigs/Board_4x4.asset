@@ -15,6 +15,6 @@ MonoBehaviour:
   modeName: Board_4x4
   width: 4
   height: 4
-  winLength: 4
+  winLength: 3
   cellSpacing: 3.1
   validCells: 01010101010101010101010101010101
