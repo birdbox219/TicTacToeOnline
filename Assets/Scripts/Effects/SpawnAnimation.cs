@@ -10,8 +10,8 @@ public class SpawnAnimation : NetworkBehaviour
     [Tooltip("Drag the SpriteRenderer of the child visual here")]
     [SerializeField] private SpriteRenderer spriteRenderer;
 
-    // TO be implemented in the future when we have particle effects ready, for now it just looks weird and out of place
-    // [SerializeField] private ParticleSystem impactParticles;
+    //TO be implemented in the future when we have particle effects ready, for now it just looks weird and out of place
+    [SerializeField] private ParticleSystem impactParticles;
 
     private Vector3 targetScale;
 
@@ -64,11 +64,31 @@ public class SpawnAnimation : NetworkBehaviour
             .SetEase(Ease.OutBack)
             .OnComplete(() =>
             {
-                // --- Future Particles ---
-                // if (impactParticles != null)
-                // {
-                //     impactParticles.Play();
-                // }
+
+
+                if (impactParticles != null)
+                {
+                    // 1. Access the "main" module of the particle system to change colors
+                    var mainModule = impactParticles.main;
+
+                    // 2. Safely check if this prefab is a Cross or a Circle
+                    if (gameObject.name.Contains("Cross"))
+                    {
+                        mainModule.startColor = Color.red;
+                        Debug.Log("Setting impact particles to Red for " + gameObject.name);
+                        // Set Cross to Red
+                    }
+                    else
+                    {
+                        mainModule.startColor = Color.blue; // Set Circle to Blue (or whatever you prefer!)
+                    }
+
+                    // 3. Play the effect!
+                    impactParticles.Play();
+                    Debug.Log("Playing impact particles on " + gameObject.name);
+                }
+
+
 
                 // Start the subtle breathing loop
                 visualTransform.DOScale(targetScale * 1.05f, 1.5f)
