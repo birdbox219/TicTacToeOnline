@@ -56,6 +56,11 @@ public class LobbyManager : MonoBehaviour {
     // ── Static game mode selection (survives scene transitions) ──
     public static GameMode SelectedGameMode { get; private set; } = GameMode.Classic3x3;
 
+    // ── Static player names (survives scene transitions) ──
+    // Host is always Cross (clientId 0), Client is always Circle
+    public static string CrossPlayerName { get; private set; } = "Player 1";
+    public static string CirclePlayerName { get; private set; } = "Player 2";
+
     private float heartbeatTimer;
     private float lobbyPollTimer;
     private float refreshLobbyListTimer = 5f;
@@ -167,6 +172,9 @@ public class LobbyManager : MonoBehaviour {
                         Debug.Log($"LobbyManager: SelectedGameMode set to {SelectedGameMode}");
                     }
 
+                    // Save player names before clearing the lobby
+                    SavePlayerNamesFromLobby();
+
                     // Game has been started, the value of KEY_START_GAME is the relay code
                     if (!IsLobbyHost())
                     {
@@ -183,6 +191,29 @@ public class LobbyManager : MonoBehaviour {
 
     public Lobby GetJoinedLobby() {
         return joinedLobby;
+    }
+
+    /// <summary>
+    /// Save player names from the lobby data into static properties
+    /// so they survive the scene transition. Host (index 0) = Cross, Client (index 1) = Circle.
+    /// </summary>
+    private void SavePlayerNamesFromLobby()
+    {
+        if (joinedLobby == null || joinedLobby.Players == null) return;
+
+        for (int i = 0; i < joinedLobby.Players.Count; i++)
+        {
+            var player = joinedLobby.Players[i];
+            if (player.Data != null && player.Data.ContainsKey(KEY_PLAYER_NAME))
+            {
+                string name = player.Data[KEY_PLAYER_NAME].Value;
+                if (i == 0) // Host = Cross
+                    CrossPlayerName = name;
+                else if (i == 1) // Client = Circle
+                    CirclePlayerName = name;
+            }
+        }
+        Debug.Log($"LobbyManager: Saved player names — Cross: '{CrossPlayerName}', Circle: '{CirclePlayerName}'");
     }
 
     public bool IsLobbyHost() {
@@ -428,6 +459,9 @@ public class LobbyManager : MonoBehaviour {
                     SelectedGameMode = Enum.Parse<GameMode>(joinedLobby.Data[KEY_GAME_MODE].Value);
                     Debug.Log($"LobbyManager Host: SelectedGameMode set to {SelectedGameMode}");
                 }
+
+                // Save player names before the lobby gets cleared
+                SavePlayerNamesFromLobby();
 
                 string relayCode = await RelayServiceGame.Instance.CreateRelay();
 

@@ -93,16 +93,48 @@ public class PlayerUI : MonoBehaviour
 
     private void Instance_OnGameStarted(object sender, System.EventArgs e)
     {
-        if (GameManager.instance.GetLocalplayerType() == GameManager.PlayerType.Cross)
+        // Set player names from lobby data
+        string crossName = LobbyManager.CrossPlayerName;
+        string circleName = LobbyManager.CirclePlayerName;
+
+        if(GameManager.instance.GetLocalplayerType() == GameManager.PlayerType.Cross)
         {
-            //crossArrowGameObject.SetActive(true);
-            crossTouTextGameOject.SetActive(true);
+            // Update the Cross name text
+            if (crossTouTextGameOject != null)
+            {
+
+
+
+
+                TextMeshProUGUI crossTmp = crossTouTextGameOject.GetComponentInChildren<TextMeshProUGUI>();
+                if (crossTmp != null)
+                {
+                    crossTmp.text = crossName;
+                    Debug.Log("Setting Cross Player Name: " + crossName);
+                }
+
+
+                crossTouTextGameOject.SetActive(true);
+
+            }
         }
-        else
+        else if(GameManager.instance.GetLocalplayerType() == GameManager.PlayerType.Cricle)
         {
-            //circleArrowGameObject.SetActive(true);
-            circleTouTextGameOject.SetActive(true);
+            // Update the Circle name text
+            if (circleTouTextGameOject != null)
+            {
+                TextMeshProUGUI circleTmp = circleTouTextGameOject.GetComponentInChildren<TextMeshProUGUI>();
+                if (circleTmp != null)
+                {
+                    circleTmp.text = circleName;
+                    Debug.Log("Setting Circle Player Name: " + circleName);
+                }
+                circleTouTextGameOject.SetActive(true);
+            }
         }
+        
+
+        
 
 
         circleScoreTextMesh.text = "0";
