@@ -81,6 +81,8 @@ public class GameManager : NetworkBehaviour
     public event EventHandler OnScoreChanged;
     public event EventHandler OnPlaceObject;
 
+    public event EventHandler OnPlayerDisconnect;
+
     public event EventHandler<OnGameWinEventArgs> OnGameWin;
     public class OnGameWinEventArgs : EventArgs
     {
@@ -331,6 +333,12 @@ public class GameManager : NetworkBehaviour
         {
             NetworkManager.OnClientConnectedCallback += NetworkManager_OnClientConnectedCallback;
         }
+
+
+        NetworkManager.Singleton.OnClientDisconnectCallback += NetworkManager_OnClientDisconnectCallback;
+
+
+
         currentTurnPlayerType.OnValueChanged += (PlayerType oldPlayerType, PlayerType newPlayerType) =>
         {
             OnCurrentPlayblePlayerTypeChanged?.Invoke(this, EventArgs.Empty);
@@ -346,6 +354,8 @@ public class GameManager : NetworkBehaviour
             OnScoreChanged?.Invoke(this, EventArgs.Empty);
         };
     }
+
+    
 
     private void NetworkManager_OnClientConnectedCallback(ulong obj)
     {
@@ -598,5 +608,29 @@ public class GameManager : NetworkBehaviour
 
         // Return true if the cell is completely empty
         return playerTypeArray[x, y] == PlayerType.None;
+    }
+
+
+
+    public override void OnNetworkDespawn()
+    {
+        if(NetworkManager.Singleton != null)
+        {
+            NetworkManager.Singleton.OnClientDisconnectCallback -= NetworkManager_OnClientDisconnectCallback;
+        }
+    }
+
+    private void NetworkManager_OnClientDisconnectCallback(ulong clientId)
+    {
+        Debug.Log($"Client disconnected: {clientId}");
+        OnPlayerDisconnect?.Invoke(this, EventArgs.Empty);
+    }
+
+
+    public void DiconnectFromGame()
+    {
+        NetworkManager.Singleton.Shutdown();
+        OnPlayerDisconnect?.Invoke(this, EventArgs.Empty);
+
     }
 }
