@@ -4,12 +4,60 @@ using System.Collections.Generic;
 using Unity.Netcode;
 using Unity.VisualScripting;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 using static GameManager;
 
 public class GameManager : NetworkBehaviour
 {
 
     public static GameManager instance { get; private set; }
+
+    // ── Intentional Disconnect Flag ──
+    // Set to true before calling Shutdown() so the disconnect callback knows not to show the panel.
+    public static bool IsIntentionalDisconnect { get; private set; } = false;
+
+    /// <summary>
+    /// Centralized method for intentionally leaving a game.
+    /// All "return to menu" paths should call this.
+    /// </summary>
+    public static void DisconnectAndReturnToMenu()
+    {
+        IsIntentionalDisconnect = true;
+
+        // 1. Leave the Lobby (if still in one)
+        if (LobbyManager.Instance != null)
+        {
+            LobbyManager.Instance.LeaveLobby();
+        }
+
+        // 2. Shut down Netcode — but DON'T load the scene yet!
+        //    Shutdown() is async; we wait for it to finish via OnClientStopped.
+        if (NetworkManager.Singleton != null && NetworkManager.Singleton.IsListening)
+        {
+            NetworkManager.Singleton.OnClientStopped += OnClientStopped;
+            NetworkManager.Singleton.Shutdown();
+        }
+        else
+        {
+            // NetworkManager is already stopped (e.g. host left), just go to menu
+            SceneManager.LoadScene("LobbyTutorial_Done");
+        }
+    }
+
+    /// <summary>
+    /// Called by NetworkManager once Shutdown() has fully completed.
+    /// Only NOW is it safe to load the lobby scene.
+    /// </summary>
+    private static void OnClientStopped(bool wasHost)
+    {
+        if (NetworkManager.Singleton != null)
+        {
+            NetworkManager.Singleton.OnClientStopped -= OnClientStopped;
+        }
+
+        // NOW it's safe to load the menu scene
+        SceneManager.LoadScene("LobbyTutorial_Done");
+    }
 
     // ── Board Configuration ──
     [Header("Board Configuration")]
@@ -617,13 +665,31 @@ public class GameManager : NetworkBehaviour
         if(NetworkManager.Singleton != null)
         {
             NetworkManager.Singleton.OnClientDisconnectCallback -= NetworkManager_OnClientDisconnectCallback;
+            NetworkManager.Singleton.OnClientConnectedCallback -= NetworkManager_OnClientConnectedCallback;
         }
     }
 
     private void NetworkManager_OnClientDisconnectCallback(ulong clientId)
     {
         Debug.Log($"Client disconnected: {clientId}");
+
+        // Don't show the disconnect panel if WE chose to leave
+        if (IsIntentionalDisconnect) return;
+
+        // If we get here, someone disconnected unexpectedly — show the panel
         OnPlayerDisconnect?.Invoke(this, EventArgs.Empty);
+    }
+
+    private void OnDestroy()
+    {
+        // Reset the singleton so stale references don't linger after scene loads
+        if (instance == this)
+        {
+            instance = null;
+        }
+
+        // Reset the flag for the next session
+        IsIntentionalDisconnect = false;
     }
 
 

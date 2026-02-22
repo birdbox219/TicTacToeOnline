@@ -51,13 +51,6 @@ public class DisconnectUIManager : MonoBehaviour
     /// </summary>
     public void ReturnToMainMenu()
     {
-        // 1. Safely disconnect from the network
-        if (NetworkManager.Singleton != null)
-        {
-            NetworkManager.Singleton.Shutdown();
-        }
-
-        // 2. Load your lobby/menu scene (Replace "LobbyScene" with your actual scene name!)
-        SceneManager.LoadScene("LobbyTutorial_Done");
+        GameManager.DisconnectAndReturnToMenu();
     }
 }
