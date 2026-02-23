@@ -1,14 +1,11 @@
-﻿using System.Collections;
-using System.Collections.Generic;
+﻿using DG.Tweening;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
 
 public class LobbyCreateUI : MonoBehaviour {
 
-
     public static LobbyCreateUI Instance { get; private set; }
-
 
     [SerializeField] private Button createButton;
     [SerializeField] private Button lobbyNameButton;
@@ -22,6 +19,8 @@ public class LobbyCreateUI : MonoBehaviour {
     [SerializeField] private TextMeshProUGUI maxPlayersText;
     [SerializeField] private TextMeshProUGUI gameModeText;
 
+    [Header("Juice Settings")]
+    [SerializeField] private CanvasGroup canvasGroup;
 
     private string lobbyName;
     private bool isPrivate;
@@ -91,7 +90,8 @@ public class LobbyCreateUI : MonoBehaviour {
             UpdateText();
         });
 
-        Hide();
+        // Initial hide — no animation, just disable immediately
+        gameObject.SetActive(false);
     }
 
     private void UpdateText() {
@@ -102,7 +102,19 @@ public class LobbyCreateUI : MonoBehaviour {
     }
 
     private void Hide() {
-        gameObject.SetActive(false);
+        if (canvasGroup != null)
+        {
+            canvasGroup.DOKill();
+            canvasGroup.transform.DOKill();
+            canvasGroup.interactable = false;
+            canvasGroup.blocksRaycasts = false;
+            canvasGroup.transform.DOScale(Vector3.one * 0.8f, 0.25f).SetEase(Ease.InBack);
+            canvasGroup.DOFade(0f, 0.25f).OnComplete(() => gameObject.SetActive(false));
+        }
+        else
+        {
+            gameObject.SetActive(false);
+        }
     }
 
     public void Show() {
@@ -114,6 +126,16 @@ public class LobbyCreateUI : MonoBehaviour {
         gameMode = LobbyManager.GameMode.Classic3x3;
 
         UpdateText();
-    }
 
+        // Pop-in animation
+        if (canvasGroup != null)
+        {
+            canvasGroup.alpha = 0f;
+            canvasGroup.transform.localScale = Vector3.one * 0.5f;
+            canvasGroup.interactable = true;
+            canvasGroup.blocksRaycasts = true;
+            canvasGroup.DOFade(1f, 0.3f);
+            canvasGroup.transform.DOScale(Vector3.one, 0.4f).SetEase(Ease.OutBack);
+        }
+    }
 }

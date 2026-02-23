@@ -42,7 +42,11 @@ public class DisconnectUIManager : MonoBehaviour
         {
             disconnectPanel.interactable = true;
             disconnectPanel.blocksRaycasts = true;
-            disconnectPanel.DOFade(1f, 0.4f);
+            disconnectPanel.DOFade(1f, 0.4f).OnComplete(() =>
+            {
+                // Shake the panel to convey urgency
+                disconnectPanel.transform.DOShakePosition(0.5f, strength: 10f, vibrato: 12, randomness: 90f, snapping: false, fadeOut: true);
+            });
         }
     }
 

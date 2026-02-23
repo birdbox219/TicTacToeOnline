@@ -140,6 +140,9 @@ public class PlayerUI : MonoBehaviour
             {
                 crossTmp.text = crossName;
             }
+            // Animate name entrance — pop from zero
+            crossTouTextGameOject.transform.localScale = Vector3.zero;
+            crossTouTextGameOject.transform.DOScale(Vector3.one, 0.4f).SetEase(Ease.OutBack).SetDelay(0.1f);
         }
 
         if (circleTouTextGameOject != null)
@@ -149,15 +152,13 @@ public class PlayerUI : MonoBehaviour
             {
                 circleTmp.text = circleName;
             }
+            // Animate name entrance — pop from zero with slight extra delay
+            circleTouTextGameOject.transform.localScale = Vector3.zero;
+            circleTouTextGameOject.transform.DOScale(Vector3.one, 0.4f).SetEase(Ease.OutBack).SetDelay(0.25f);
         }
-
-
-
-
 
         circleScoreTextMesh.text = "0";
         crossScoreTextMesh.text = "0";
-
 
         lastCrossScore = 0;
         lastCircleScore = 0;

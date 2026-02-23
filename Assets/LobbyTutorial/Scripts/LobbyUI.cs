@@ -1,5 +1,5 @@
-using System.Collections;
 using System.Collections.Generic;
+using DG.Tweening;
 using TMPro;
 using Unity.Services.Authentication;
 using Unity.Services.Lobbies.Models;
@@ -8,9 +8,7 @@ using UnityEngine.UI;
 
 public class LobbyUI : MonoBehaviour {
 
-
     public static LobbyUI Instance { get; private set; }
-
 
     [SerializeField] private Transform playerSingleTemplate;
     [SerializeField] private Transform container;
@@ -23,6 +21,10 @@ public class LobbyUI : MonoBehaviour {
     [SerializeField] private Button leaveLobbyButton;
     [SerializeField] private Button changeGameModeButton;
 
+    [Header("Juice Settings")]
+    [SerializeField] private CanvasGroup canvasGroup;
+
+    private bool _isShown = false;
 
     private void Awake() {
         Instance = this;
@@ -55,7 +57,8 @@ public class LobbyUI : MonoBehaviour {
         LobbyManager.Instance.OnLeftLobby += LobbyManager_OnLeftLobby;
         LobbyManager.Instance.OnKickedFromLobby += LobbyManager_OnLeftLobby;
 
-        Hide();
+        // Initial hide — instant, no animation
+        gameObject.SetActive(false);
     }
 
     private void LobbyManager_OnLeftLobby(object sender, System.EventArgs e) {
@@ -74,6 +77,9 @@ public class LobbyUI : MonoBehaviour {
     private void UpdateLobby(Lobby lobby) {
         ClearLobby();
 
+        bool shouldAnimate = !_isShown; // Only animate on first appearance
+
+        int index = 0;
         foreach (Player player in lobby.Players) {
             Transform playerSingleTransform = Instantiate(playerSingleTemplate, container);
             playerSingleTransform.gameObject.SetActive(true);
@@ -85,6 +91,13 @@ public class LobbyUI : MonoBehaviour {
             );
 
             lobbyPlayerSingleUI.UpdatePlayer(player);
+
+            // Only stagger-animate on first show, not on poll updates
+            if (shouldAnimate)
+            {
+                lobbyPlayerSingleUI.AnimateIn(index * 0.08f);
+            }
+            index++;
         }
 
         changeGameModeButton.gameObject.SetActive(LobbyManager.Instance.IsLobbyHost());
@@ -104,11 +117,35 @@ public class LobbyUI : MonoBehaviour {
     }
 
     private void Hide() {
-        gameObject.SetActive(false);
+        _isShown = false;
+        if (canvasGroup != null)
+        {
+            canvasGroup.DOKill();
+            canvasGroup.transform.DOKill();
+            canvasGroup.interactable = false;
+            canvasGroup.blocksRaycasts = false;
+            canvasGroup.transform.DOScale(Vector3.one * 0.9f, 0.2f).SetEase(Ease.InBack);
+            canvasGroup.DOFade(0f, 0.2f).OnComplete(() => gameObject.SetActive(false));
+        }
+        else
+        {
+            gameObject.SetActive(false);
+        }
     }
 
     private void Show() {
         gameObject.SetActive(true);
-    }
 
+        if (!_isShown && canvasGroup != null)
+        {
+            canvasGroup.alpha = 0f;
+            canvasGroup.transform.localScale = Vector3.one * 0.8f;
+            canvasGroup.interactable = true;
+            canvasGroup.blocksRaycasts = true;
+            canvasGroup.DOFade(1f, 0.3f);
+            canvasGroup.transform.DOScale(Vector3.one, 0.35f).SetEase(Ease.OutBack);
+        }
+
+        _isShown = true;
+    }
 }
