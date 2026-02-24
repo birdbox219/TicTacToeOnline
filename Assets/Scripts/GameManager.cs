@@ -454,7 +454,7 @@ public class GameManager : NetworkBehaviour
                 // Clear the cell
                 playerTypeArray[oldestPiece.x, oldestPiece.y] = PlayerType.None;
 
-
+                TriggerOnPieceRemovedRpc(oldestPiece.x, oldestPiece.y);
             }
         }
 

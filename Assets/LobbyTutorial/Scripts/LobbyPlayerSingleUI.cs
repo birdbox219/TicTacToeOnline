@@ -28,11 +28,9 @@ public class LobbyPlayerSingleUI : MonoBehaviour {
         characterImage.sprite = LobbyAssets.Instance.GetSprite(playerCharacter);
     }
 
-    /// <summary>
-    /// Call this after instantiation to animate the player card in with a stagger delay.
-    /// </summary>
+
     public void AnimateIn(float delay) {
-        // Slide in from left + scale pop
+
         transform.localScale = Vector3.zero;
         transform.DOScale(Vector3.one, 0.35f).SetEase(Ease.OutBack).SetDelay(delay);
     }

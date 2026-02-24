@@ -5,7 +5,7 @@ public class SetupBoardConfig
 {
     public static string Execute()
     {
-        // Create BoardConfigs folder
+
         if (!AssetDatabase.IsValidFolder("Assets/BoardConfigs"))
         {
             AssetDatabase.CreateFolder("Assets", "BoardConfigs");

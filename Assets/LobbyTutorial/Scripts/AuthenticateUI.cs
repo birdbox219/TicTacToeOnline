@@ -17,7 +17,7 @@ public class AuthenticateUI : MonoBehaviour {
     }
 
     private void OnEnable() {
-        // Entrance animation every time the panel becomes visible
+
         if (canvasGroup != null)
         {
             canvasGroup.alpha = 0f;

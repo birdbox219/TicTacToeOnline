@@ -171,6 +171,7 @@ public class ISoundManager : MonoBehaviour
         if (Instance == null) return;
         if (Instance.musicSource == null) return;
 
+        Instance.musicStopped = false;
         Instance.playlistActive = true;
 
         // Stop current music to prevent overlap

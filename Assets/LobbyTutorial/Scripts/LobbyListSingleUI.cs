@@ -26,9 +26,7 @@ public class LobbyListSingleUI : MonoBehaviour {
         gameModeText.text = lobby.Data[LobbyManager.KEY_GAME_MODE].Value;
     }
 
-    /// <summary>
-    /// Call this after instantiation to animate the entry in with a stagger delay.
-    /// </summary>
+
     public void AnimateIn(float delay) {
         transform.localScale = Vector3.zero;
         transform.DOScale(Vector3.one, 0.3f).SetEase(Ease.OutBack).SetDelay(delay);

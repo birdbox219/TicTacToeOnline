@@ -5,8 +5,8 @@ public class SetupPyramidConfig
 {
     public static string Execute()
     {
-        // Create Pyramid XO BoardConfig
-        // Layout in a 5x3 grid:
+
+
         // Row 2 (top):     _  _  X  _  _     (1 cell)
         // Row 1 (mid):     _  X  X  X  _     (3 cells)
         // Row 0 (bottom):  X  X  X  X  X     (5 cells)
@@ -21,19 +21,17 @@ public class SetupPyramidConfig
 
         // validCells: index = y * width + x
         config.validCells = new bool[15];
-        // Row 0 (y=0): all 5 valid
+
         config.validCells[0]  = true;  // (0,0)
         config.validCells[1]  = true;  // (1,0)
         config.validCells[2]  = true;  // (2,0)
         config.validCells[3]  = true;  // (3,0)
         config.validCells[4]  = true;  // (4,0)
-        // Row 1 (y=1): x=1,2,3 valid
         config.validCells[5]  = false; // (0,1)
         config.validCells[6]  = true;  // (1,1)
         config.validCells[7]  = true;  // (2,1)
         config.validCells[8]  = true;  // (3,1)
         config.validCells[9]  = false; // (4,1)
-        // Row 2 (y=2): only x=2 valid
         config.validCells[10] = false; // (0,2)
         config.validCells[11] = false; // (1,2)
         config.validCells[12] = true;  // (2,2)

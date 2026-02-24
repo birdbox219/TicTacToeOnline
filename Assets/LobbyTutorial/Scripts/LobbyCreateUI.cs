@@ -90,7 +90,7 @@ public class LobbyCreateUI : MonoBehaviour {
             UpdateText();
         });
 
-        // Initial hide — no animation, just disable immediately
+    
         gameObject.SetActive(false);
     }
 
@@ -127,7 +127,7 @@ public class LobbyCreateUI : MonoBehaviour {
 
         UpdateText();
 
-        // Pop-in animation
+
         if (canvasGroup != null)
         {
             canvasGroup.alpha = 0f;

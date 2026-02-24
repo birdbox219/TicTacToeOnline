@@ -34,7 +34,7 @@ public class LobbyListUI : MonoBehaviour {
     }
 
     private void OnEnable() {
-        // Pop-in when the parent Lobby container becomes visible
+
         if (canvasGroup != null)
         {
             canvasGroup.alpha = 0f;
@@ -74,7 +74,7 @@ public class LobbyListUI : MonoBehaviour {
             LobbyListSingleUI lobbyListSingleUI = lobbySingleTransform.GetComponent<LobbyListSingleUI>();
             lobbyListSingleUI.UpdateLobby(lobby);
 
-            // Staggered cascade animation
+
             lobbyListSingleUI.AnimateIn(index * 0.06f);
             index++;
         }
@@ -83,7 +83,7 @@ public class LobbyListUI : MonoBehaviour {
     private void RefreshButtonClick() {
         LobbyManager.Instance.RefreshLobbyList();
 
-        // Subtle punch feedback on the refresh button
+
         refreshButton.transform.DOKill(true);
         refreshButton.transform.DOPunchScale(new Vector3(0.15f, 0.15f, 0f), 0.3f, 6);
     }

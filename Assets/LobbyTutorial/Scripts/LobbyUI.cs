@@ -57,7 +57,6 @@ public class LobbyUI : MonoBehaviour {
         LobbyManager.Instance.OnLeftLobby += LobbyManager_OnLeftLobby;
         LobbyManager.Instance.OnKickedFromLobby += LobbyManager_OnLeftLobby;
 
-        // Initial hide — instant, no animation
         gameObject.SetActive(false);
     }
 
