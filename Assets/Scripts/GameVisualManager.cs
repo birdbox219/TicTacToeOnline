@@ -1,106 +1,66 @@
-﻿using NUnit.Framework;
-using System.Net.NetworkInformation;
+﻿using DG.Tweening;
+using System.Collections.Generic;
+using System.Linq;
 using Unity.Netcode;
 using UnityEngine;
-using System.Collections.Generic;
+
 
 public class GameVisualManager : NetworkBehaviour
 {
-
-
-
-
-
-
-
-    /*
-     Use Visual Studio’s Rename (Refactor) feature to change the variable name safely across the scope. Steps:
-
-1. Place the caret on the variable name you want to rename (Prefab).
-2. Press F2 (default) or right‑click → Refactor → Rename… (or use Ctrl+R, R).
-3. In the Rename dialog/typebox, enter the new name: prefab
-4. Press Enter (or click Apply). Visual Studio will preview (if enabled) and apply the rename to all references in scope.
-
-Notes and tips:
-* This is a semantic rename — it updates declarations and all usages (not just text).
-* If you only want to rename occurrences in one file (and not symbols with the same name elsewhere), the rename will still be scoped to the symbol’s definition (local variable, field, property, etc.). If there are other symbols named Prefab in other scopes, they will not be changed.
-* You can enable “Preview changes” in the dialog to review replacements before applying.
-* If F2 doesn’t work, use Ctrl+R, Ctrl+R (older VS shortcuts) or open the Quick Actions menu (lightbulb) and choose Rename.
-
-If you prefer a plain text replace:
-* Edit → Find and Replace → Replace in Files (Ctrl+Shift+H).
-* Find: \bPrefab\b
-* Replace: prefab
-* Check “Use Regular Expressions” and set Look in: Current Project or Entire Solution.
-Warning: Replace in Files is blind text replacement and may change unrelated symbols; prefer Refactor → Rename for safety.
-
-If you want, tell me whether Prefab is a local variable, field, or property and I’ll give exact steps for that case.
-     
-     */
-
-
-
-    /*
-     Here are the Visual Studio 2022 keyboard shortcuts you can use to quickly select, edit, or delete whole lines.
-
-Quickly select the current line
-* Select whole line (caret anywhere on the line): Shift+End then Shift+Home
-  * Move caret to line end and select to start: End then Shift+Home (two-step)
-* Faster single-step alternatives:
-  * Select from caret to line end: Shift+End
-  * Select from caret to line start: Shift+Home
-* Select the entire line (including newline) in one go:
-  * Ctrl+L — cuts the current line (same as Ctrl+X when no selection), but acts as a line selection+cut command.
-  * If you want selection only (not cut), press Home, then Shift+End.
-
-Delete a single line
-* Ctrl+L — remove (cut) the current line. This deletes the whole line and places it on the clipboard.
-* Alternatively, to delete without affecting clipboard:
-    1. Home then Shift+End to select the line.
-    2. Delete (or Backspace) — Delete removes selection without preserving previous clipboard contents.
-
-Other useful line-edit shortcuts
-* Ctrl+Shift+L — remove all occurrences of the current selection (not the same as line delete; depends on extensions).
-* Ctrl+X when no selection — cuts the whole current line (same behavior as Ctrl+L).
-* Ctrl+Y — Redo (useful after accidental deletes).
-* Ctrl+Z — Undo.
-
-Recommended quick workflows
-* Delete current line and keep clipboard: Ctrl+L
-* Select entire line without cutting: Home → Shift+End
-* Select from caret to line end quickly: Shift+End
-
-If you want, I can show these as a printable cheat-sheet or map them to different keyboard layouts (e.g., Mac or custom keybindings).
-     
-     */
-
-    private const float GRID_SIZE = 3.1f;
-
-
     [SerializeField] private Transform crossPrefab;
     [SerializeField] private Transform circlePrefab;
     [SerializeField] private Transform lineCompletePrefab;
 
     private List<GameObject> visualGameObjectList;
+    private Dictionary<Vector2Int, SpawnAnimation> pieceMap;
+
+
+    private float cellSpacing = 3.1f;
+    private float offsetX;
+    private float offsetY;
+    private bool configCached = false;
 
     private void Awake()
     {
         visualGameObjectList = new List<GameObject>();
+        pieceMap = new Dictionary<Vector2Int, SpawnAnimation>();
     }
-
-
-
 
     private void Start()
     {
         GameManager.instance.OnClickOnGridPosition += GameManager_OnClickOnGridPosition;
         GameManager.instance.OnGameWin += Instance_OnGameWin;
         GameManager.instance.OnRematch += Instance_OnRematch;
+
+
+        //FadingXO
+        GameManager.instance.OnPieceRemoved += Instance_OnPieceRemoved;
+    }
+
+    
+
+
+    public void RefreshBoardConfig()
+    {
+        BoardConfig config = GameManager.instance?.ActiveBoardConfig;
+        if (config != null)
+        {
+            cellSpacing = config.cellSpacing;
+            offsetX = (config.width - 1) * cellSpacing / 2f;
+            offsetY = (config.height - 1) * cellSpacing / 2f;
+            configCached = true;
+        }
+        else
+        {
+            // Fallback: 3x3
+            cellSpacing = 3.1f;
+            offsetX = (3 - 1) * cellSpacing / 2f;
+            offsetY = (3 - 1) * cellSpacing / 2f;
+        }
     }
 
     private void Instance_OnRematch(object sender, System.EventArgs e)
     {
-
         if(!NetworkManager.Singleton.IsServer)
         {
             return;
@@ -111,6 +71,8 @@ If you want, I can show these as a printable cheat-sheet or map them to differen
             Destroy(visualGameObject);
         }
         visualGameObjectList.Clear();
+
+        pieceMap.Clear();
     }
 
     private void Instance_OnGameWin(object sender, GameManager.OnGameWinEventArgs e)
@@ -121,31 +83,77 @@ If you want, I can show these as a printable cheat-sheet or map them to differen
         }
 
 
-        Quaternion rotation = Quaternion.identity;
-        switch (e.line.oriantation)
+        float angle = CalculateLineAngle(e.line);
+        Quaternion rotation = Quaternion.Euler(0, 0, angle);
+
+
+        float lineLength = CalculateLineLength(e.line);
+
+        Vector2 centerWorldPos = GetWorldPosition(e.line.centerPos.x, e.line.centerPos.y);
+        Transform lineCompleteTransform = Instantiate(lineCompletePrefab, centerWorldPos, rotation);
+
+        float baseLength = 3.1f * 2f;
+        float scaleFactor = lineLength / baseLength;
+        if (scaleFactor > 0 && lineCompletePrefab.localScale.x > 0)
         {
-            case GameManager.Oriantation.Horizontal:
-                rotation = Quaternion.Euler(0, 0, 0f);
-                break;
-            case GameManager.Oriantation.Vertical:
-                rotation = Quaternion.Euler(0, 0, 90f );
-                break;
-            case GameManager.Oriantation.DiagonalA:
-                rotation = Quaternion.Euler(0, 0, 45f);
-                break;
-            case GameManager.Oriantation.DiagonalB:
-                rotation = Quaternion.Euler(0, 0 ,-45f);
-                break;
+            Vector3 scale = lineCompleteTransform.localScale;
+            scale.x *= scaleFactor;
+            lineCompleteTransform.localScale = scale;
         }
 
-        Transform lineCompleteTransform = Instantiate(lineCompletePrefab , GetWorldPosition(e.line.centerPos.x , e.line.centerPos.y),  rotation);
         lineCompleteTransform.GetComponent<NetworkObject>().Spawn();
         visualGameObjectList.Add(lineCompleteTransform.gameObject);
+
+
+
+        float lineDrawTime = 3f;
+
+        for (int i = 0; i < e.line.gridVector2Int.Count; i++)
+        {
+            Vector2Int gridPos = e.line.gridVector2Int[i];
+
+
+            if (pieceMap.TryGetValue(gridPos, out SpawnAnimation piece))
+            {
+
+                float delay = i * (lineDrawTime / (e.line.gridVector2Int.Count - 1));
+
+
+                piece.PlayWinSequenceRpc(delay);
+            }
+        }
+
+    }
+
+
+    private float CalculateLineAngle(GameManager.Line line)
+    {
+        if (line.gridVector2Int == null || line.gridVector2Int.Count < 2)
+            return 0f;
+
+        Vector2 startPos = GetWorldPosition(line.gridVector2Int[0].x, line.gridVector2Int[0].y);
+        Vector2 endPos = GetWorldPosition(line.gridVector2Int[line.gridVector2Int.Count - 1].x,
+                                            line.gridVector2Int[line.gridVector2Int.Count - 1].y);
+
+        Vector2 dir = endPos - startPos;
+        return Mathf.Atan2(dir.y, dir.x) * Mathf.Rad2Deg;
+    }
+
+
+    private float CalculateLineLength(GameManager.Line line)
+    {
+        if (line.gridVector2Int == null || line.gridVector2Int.Count < 2)
+            return cellSpacing;
+
+        Vector2 startPos = GetWorldPosition(line.gridVector2Int[0].x, line.gridVector2Int[0].y);
+        Vector2 endPos = GetWorldPosition(line.gridVector2Int[line.gridVector2Int.Count - 1].x,
+                                            line.gridVector2Int[line.gridVector2Int.Count - 1].y);
+
+        return Vector2.Distance(startPos, endPos);
     }
 
     private void GameManager_OnClickOnGridPosition(object sender, GameManager.OnClickOnGridPositionEventArgs e)
     {
-        
         SpawnObjectRpc(e.x , e.y , e.playerType );
     }
 
@@ -154,7 +162,6 @@ If you want, I can show these as a printable cheat-sheet or map them to differen
     private void SpawnObjectRpc(int x , int y , GameManager.PlayerType playerType)
     {
         Transform prefab;
-
 
         switch (playerType)
         {
@@ -165,23 +172,44 @@ If you want, I can show these as a printable cheat-sheet or map them to differen
             case GameManager.PlayerType.Cricle:
                     prefab = circlePrefab;
                     break;
-
-
         }
 
+        Transform spawnedTransform = Instantiate(prefab, GetWorldPosition(x, y), Quaternion.identity);
+        spawnedTransform.GetComponent<NetworkObject>().Spawn();
+        visualGameObjectList.Add(spawnedTransform.gameObject);
 
 
-
-
-        Transform spawnedCircleTrans = Instantiate(prefab , GetWorldPosition(x ,y ) , Quaternion.identity);
-        spawnedCircleTrans.GetComponent<NetworkObject>().Spawn();
-        visualGameObjectList.Add(spawnedCircleTrans.gameObject);
-        
+        SpawnAnimation spawnAnim = spawnedTransform.GetComponent<SpawnAnimation>();
+        if (spawnAnim != null)
+        {
+            pieceMap[new Vector2Int(x, y)] = spawnAnim;
+        }
     }
+
 
     private Vector2 GetWorldPosition(int x, int y)
     {
-        return new Vector2(-GRID_SIZE + x * GRID_SIZE, -GRID_SIZE + y * GRID_SIZE);
+        if (!configCached)
+            RefreshBoardConfig();
 
+        return new Vector2(x * cellSpacing - offsetX, y * cellSpacing - offsetY);
+    }
+
+
+
+    private void Instance_OnPieceRemoved(object sender, Vector2Int gridPos)
+    {
+        if (pieceMap.TryGetValue(gridPos, out SpawnAnimation pieceAnim))
+        {
+            // Remove from tracking
+            pieceMap.Remove(gridPos);
+            visualGameObjectList.Remove(pieceAnim.gameObject);
+
+
+            pieceAnim.transform.DOScale(Vector3.zero, 0.4f).SetEase(Ease.InBack);
+            pieceAnim.transform.DORotate(new Vector3(0, 0, -180), 0.4f, RotateMode.FastBeyond360).SetRelative(true);
+
+            Destroy(pieceAnim.gameObject, 0.45f);
+        }
     }
 }

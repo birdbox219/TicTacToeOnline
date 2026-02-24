@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using Unity.Netcode;
 using Unity.VisualScripting;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 using static GameManager;
 
 public class GameManager : NetworkBehaviour
@@ -12,6 +13,80 @@ public class GameManager : NetworkBehaviour
     public static GameManager instance { get; private set; }
 
 
+    public static bool IsIntentionalDisconnect { get; private set; } = false;
+
+
+    public static void DisconnectAndReturnToMenu()
+    {
+        IsIntentionalDisconnect = true;
+
+        // 1. Leave the Lobby (if still in one)
+        if (LobbyManager.Instance != null)
+        {
+            LobbyManager.Instance.LeaveLobby();
+        }
+
+        if (NetworkManager.Singleton != null && NetworkManager.Singleton.IsListening)
+        {
+            NetworkManager.Singleton.OnClientStopped += OnClientStopped;
+            NetworkManager.Singleton.Shutdown();
+        }
+        else
+        {
+            // NetworkManager is already stopped, just go to menu
+            SceneManager.LoadScene("LobbyTutorial_Done");
+        }
+    }
+
+
+    private static void OnClientStopped(bool wasHost)
+    {
+        if (NetworkManager.Singleton != null)
+        {
+            NetworkManager.Singleton.OnClientStopped -= OnClientStopped;
+        }
+
+        SceneManager.LoadScene("LobbyTutorial_Done");
+    }
+
+
+    [Header("Board Configuration")]
+    [SerializeField] private BoardConfig[] boardConfigs;  // All available board configs
+    [SerializeField] private GridSpawner gridSpawner;
+
+    private BoardConfig boardConfig;  // The currently active config
+    public BoardConfig ActiveBoardConfig => boardConfig;
+
+
+    public void SetBoardConfig(LobbyManager.GameMode gameMode)
+    {
+        string targetName = gameMode switch
+        {
+            LobbyManager.GameMode.Classic3x3 => "Classic 3x3",
+            LobbyManager.GameMode.PyramidXO => "Pyramid XO",
+            LobbyManager.GameMode.Board4x4 => "Board_4x4",
+            LobbyManager.GameMode.FadingXO => "Fading XO",
+            _ => "Classic 3x3"
+        };
+
+        foreach (var config in boardConfigs)
+        {
+            if (config != null && config.modeName == targetName)
+            {
+                boardConfig = config;
+                Debug.Log($"GameManager: Selected board config '{config.modeName}'");
+                return;
+            }
+        }
+
+        // Fallback to first config
+        if (boardConfigs.Length > 0 && boardConfigs[0] != null)
+        {
+            boardConfig = boardConfigs[0];
+            Debug.LogWarning($"GameManager: GameMode '{gameMode}' not found, falling back to '{boardConfig.modeName}'");
+        }
+    }
+
     public event EventHandler<OnClickOnGridPositionEventArgs> OnClickOnGridPosition;
     public class OnClickOnGridPositionEventArgs : EventArgs
     {
@@ -19,13 +94,20 @@ public class GameManager : NetworkBehaviour
         public int y;
         public PlayerType playerType;
 
-        public OnClickOnGridPositionEventArgs(int x, int y   /* , PlayerType playerType)*/)
+        public OnClickOnGridPositionEventArgs(int x, int y)
         {
             this.x = x;
             this.y = y;
-            //this.playerType = playerType;
         }
     }
+
+    //FadingXO
+    private Queue<Vector2Int> crossPieceQueue = new Queue<Vector2Int>();
+    private Queue<Vector2Int> circlePieceQueue = new Queue<Vector2Int>();
+
+    public event EventHandler<Vector2Int> OnPieceRemoved;
+    //FadingXO
+
 
     public event EventHandler OnGameStarted;
     public event EventHandler OnCurrentPlayblePlayerTypeChanged;
@@ -34,15 +116,14 @@ public class GameManager : NetworkBehaviour
     public event EventHandler OnScoreChanged;
     public event EventHandler OnPlaceObject;
 
+    public event EventHandler OnPlayerDisconnect;
+
     public event EventHandler<OnGameWinEventArgs> OnGameWin;
     public class OnGameWinEventArgs : EventArgs
     {
         public Line line;
         public PlayerType winPlayerType;
     }
-
-
-
 
 
     public enum PlayerType
@@ -62,11 +143,9 @@ public class GameManager : NetworkBehaviour
 
     public struct Line
     {
-
         public List<Vector2Int> gridVector2Int;
         public Vector2Int centerPos;
         public Oriantation oriantation;
-
     }
 
 
@@ -85,92 +164,185 @@ public class GameManager : NetworkBehaviour
         if (instance == null)
         {
             instance = this;
-            // Optional: DontDestroyOnLoad(gameObject);
-
-
         }
         else if (instance != this)
         {
             Debug.LogWarning("Found duplicate GameManager instance, destroying the new one.");
             Destroy(gameObject);
         }
+    }
 
-        playerTypeArray = new PlayerType[3, 3];
 
-        lineList = new List<Line>
+    public void InitializeBoard()
+    {
+        if (boardConfig == null)
         {
-            //Horzinatol Lines
+            Debug.LogError("GameManager: BoardConfig is not assigned! Falling back to 3x3.");
+            playerTypeArray = new PlayerType[3, 3];
+            lineList = GenerateFallbackLines();
+        }
+        else
+        {
+            playerTypeArray = new PlayerType[boardConfig.width, boardConfig.height];
+            lineList = GenerateWinLines(boardConfig);
+        }
+
+        // Spawn the grid
+        if (gridSpawner != null && boardConfig != null)
+        {
+            gridSpawner.SpawnGrid(boardConfig);
+        }
+
+
+        GameVisualManager visualManager = FindObjectOfType<GameVisualManager>();
+        if (visualManager != null)
+        {
+            visualManager.RefreshBoardConfig();
+        }
+    }
+
+
+    private List<Line> GenerateWinLines(BoardConfig config)
+    {
+        List<Line> lines = new List<Line>();
+
+
+        Vector2Int[] directions = new Vector2Int[]
+        {
+            new Vector2Int(1, 0),  // Horizontal
+            new Vector2Int(0, 1),  // Vertical
+            new Vector2Int(1, 1),  // DiagonalA (bottom-left to top-right)
+            new Vector2Int(1, -1)  // DiagonalB (top-left to bottom-right)
+        };
+
+        Oriantation[] orientations = new Oriantation[]
+        {
+            Oriantation.Horizontal,
+            Oriantation.Vertical,
+            Oriantation.DiagonalA,
+            Oriantation.DiagonalB
+        };
+
+        for (int d = 0; d < directions.Length; d++)
+        {
+            Vector2Int dir = directions[d];
+            Oriantation orientation = orientations[d];
+
+            for (int y = 0; y < config.height; y++)
+            {
+                for (int x = 0; x < config.width; x++)
+                {
+
+                    List<Vector2Int> positions = new List<Vector2Int>();
+                    bool allValid = true;
+
+                    for (int step = 0; step < config.winLength; step++)
+                    {
+                        int px = x + dir.x * step;
+                        int py = y + dir.y * step;
+
+                        if (px < 0 || px >= config.width || py < 0 || py >= config.height)
+                        {
+                            allValid = false;
+                            break;
+                        }
+
+                        if (!config.IsCellValid(px, py))
+                        {
+                            allValid = false;
+                            break;
+                        }
+
+                        positions.Add(new Vector2Int(px, py));
+                    }
+
+                    if (allValid && positions.Count == config.winLength)
+                    {
+                        // Center position
+                        Vector2Int center = positions[config.winLength / 2];
+
+                        lines.Add(new Line
+                        {
+                            gridVector2Int = positions,
+                            centerPos = center,
+                            oriantation = orientation
+                        });
+                    }
+                }
+            }
+        }
+
+        Debug.Log($"Generated {lines.Count} win lines for {config.modeName} ({config.width}x{config.height}, win={config.winLength})");
+        return lines;
+    }
+
+
+    private List<Line> GenerateFallbackLines()
+    {
+        return new List<Line>
+        {
+            // Horizontal Lines
             new Line
             {
-                gridVector2Int = new List<Vector2Int> { new Vector2Int(0,0) , new Vector2Int(1,0) , new Vector2Int(2,0) },
+                gridVector2Int = new List<Vector2Int> { new Vector2Int(0,0), new Vector2Int(1,0), new Vector2Int(2,0) },
                 centerPos = new Vector2Int(1,0),
                 oriantation = Oriantation.Horizontal,
-
             },
-
             new Line
             {
-                gridVector2Int = new List<Vector2Int> { new Vector2Int(0,1) , new Vector2Int(1,1) , new Vector2Int(2,1) },
+                gridVector2Int = new List<Vector2Int> { new Vector2Int(0,1), new Vector2Int(1,1), new Vector2Int(2,1) },
                 centerPos = new Vector2Int(1,1),
                 oriantation = Oriantation.Horizontal,
-
             },
-
             new Line
             {
-                gridVector2Int = new List<Vector2Int> { new Vector2Int(0,2) , new Vector2Int(1,2) , new Vector2Int(2,2) },
+                gridVector2Int = new List<Vector2Int> { new Vector2Int(0,2), new Vector2Int(1,2), new Vector2Int(2,2) },
                 centerPos = new Vector2Int(1,2),
                 oriantation = Oriantation.Horizontal,
             },
-
-            //Vertical Lines
+            // Vertical Lines
             new Line
             {
-                gridVector2Int = new List<Vector2Int> { new Vector2Int(0,0) , new Vector2Int(0,1) , new Vector2Int(0,2) },
+                gridVector2Int = new List<Vector2Int> { new Vector2Int(0,0), new Vector2Int(0,1), new Vector2Int(0,2) },
                 centerPos = new Vector2Int(0,1),
                 oriantation = Oriantation.Vertical,
             },
             new Line
             {
-                gridVector2Int = new List<Vector2Int> { new Vector2Int(1,0) , new Vector2Int(1,1) , new Vector2Int(1,2) },
+                gridVector2Int = new List<Vector2Int> { new Vector2Int(1,0), new Vector2Int(1,1), new Vector2Int(1,2) },
                 centerPos = new Vector2Int(1,1),
                 oriantation = Oriantation.Vertical,
             },
             new Line
             {
-                gridVector2Int = new List<Vector2Int> { new Vector2Int(2,0) , new Vector2Int(2,1) , new Vector2Int(2,2) },
+                gridVector2Int = new List<Vector2Int> { new Vector2Int(2,0), new Vector2Int(2,1), new Vector2Int(2,2) },
                 centerPos = new Vector2Int(2,1),
                 oriantation = Oriantation.Vertical,
             },
-
-            //Diagonal Lines    
+            // Diagonal Lines
             new Line
             {
-                gridVector2Int = new List<Vector2Int> { new Vector2Int(0,0) , new Vector2Int(1,1) , new Vector2Int(2,2) },
+                gridVector2Int = new List<Vector2Int> { new Vector2Int(0,0), new Vector2Int(1,1), new Vector2Int(2,2) },
                 centerPos = new Vector2Int(1,1),
                 oriantation = Oriantation.DiagonalA,
             },
             new Line
             {
-                gridVector2Int = new List<Vector2Int> { new Vector2Int(0,2) , new Vector2Int(1,1) , new Vector2Int(2 ,0) },
+                gridVector2Int = new List<Vector2Int> { new Vector2Int(0,2), new Vector2Int(1,1), new Vector2Int(2,0) },
                 centerPos = new Vector2Int(1,1),
                 oriantation = Oriantation.DiagonalB,
             },
-            
-            
-
-
         };
-
-
-
-
     }
 
 
     public override void OnNetworkSpawn()
     {
         Debug.Log($"On NetworkSpawn : {NetworkManager.Singleton.LocalClientId}");
+
+        // Initialize board from the lobby's selected game mode
+        SetBoardConfig(LobbyManager.SelectedGameMode);
+        InitializeBoard();
 
         ulong clientId = NetworkManager.Singleton.LocalClientId;
 
@@ -185,10 +357,14 @@ public class GameManager : NetworkBehaviour
 
         if (IsServer)
         {
-            
-
             NetworkManager.OnClientConnectedCallback += NetworkManager_OnClientConnectedCallback;
         }
+
+
+        NetworkManager.Singleton.OnClientDisconnectCallback += NetworkManager_OnClientDisconnectCallback;
+
+
+
         currentTurnPlayerType.OnValueChanged += (PlayerType oldPlayerType, PlayerType newPlayerType) =>
         {
             OnCurrentPlayblePlayerTypeChanged?.Invoke(this, EventArgs.Empty);
@@ -204,6 +380,8 @@ public class GameManager : NetworkBehaviour
             OnScoreChanged?.Invoke(this, EventArgs.Empty);
         };
     }
+
+    
 
     private void NetworkManager_OnClientConnectedCallback(ulong obj)
     {
@@ -225,11 +403,28 @@ public class GameManager : NetworkBehaviour
     [Rpc(SendTo.Server)]
     public void ClickedOnGridPosRpc(int x , int y , PlayerType playerType)
     {
-               Debug.Log($"Grid Position Clicked at ({x} , {y})");
+        Debug.Log($"Grid Position Clicked at ({x} , {y})");
 
         if(playerType != currentTurnPlayerType.Value)
         {
             Debug.Log("Not your turn!");
+            return;
+        }
+
+        // Validate cell is within bounds
+        int gridWidth = boardConfig != null ? boardConfig.width : 3;
+        int gridHeight = boardConfig != null ? boardConfig.height : 3;
+
+        if (x < 0 || x >= gridWidth || y < 0 || y >= gridHeight)
+        {
+            Debug.Log("Position out of bounds!");
+            return;
+        }
+
+        // Validate cell is a valid playable cell
+        if (boardConfig != null && !boardConfig.IsCellValid(x, y))
+        {
+            Debug.Log("Invalid cell position!");
             return;
         }
 
@@ -242,35 +437,46 @@ public class GameManager : NetworkBehaviour
         playerTypeArray[x, y] = playerType;
         TriggerOnPlaceObjectRpc();
 
-        OnClickOnGridPosition?.Invoke(this, new OnClickOnGridPositionEventArgs(x, y  /* GetLocalplayerType() */ )
 
+        // ── Fading XO Cleanup ──
+        bool isFadingMode = (boardConfig != null && boardConfig.modeName == "Fading XO");
+
+        if (isFadingMode)
         {
-            playerType = playerType
+            Queue<Vector2Int> activeQueue = (playerType == PlayerType.Cross) ? crossPieceQueue : circlePieceQueue;
+            activeQueue.Enqueue(new Vector2Int(x, y));
+
+
+            if (activeQueue.Count > 3)
+            {
+                Vector2Int oldestPiece = activeQueue.Dequeue();
+
+                // Clear the cell
+                playerTypeArray[oldestPiece.x, oldestPiece.y] = PlayerType.None;
+
+                TriggerOnPieceRemovedRpc(oldestPiece.x, oldestPiece.y);
+            }
         }
 
-        );
+
+        OnClickOnGridPosition?.Invoke(this, new OnClickOnGridPositionEventArgs(x, y)
+        {
+            playerType = playerType
+        });
 
         switch(currentTurnPlayerType.Value)
         {
             default:
             case PlayerType.Cross:
                 currentTurnPlayerType.Value = PlayerType.Cricle;
-                
                 break;
             case PlayerType.Cricle:
                 currentTurnPlayerType.Value = PlayerType.Cross;
-                
                 break;
         }
 
-        //TriggerOnCurrentPlayablePlayerTypeChangedRpc();
-
         TestWinner();
-
-
     }
-
-
 
 
     [Rpc(SendTo.ClientsAndHost)]
@@ -279,31 +485,30 @@ public class GameManager : NetworkBehaviour
         OnPlaceObject?.Invoke(this, EventArgs.Empty);
     }
 
-    //[Rpc(SendTo.ClientsAndHost)]
+    [Rpc(SendTo.ClientsAndHost)]
+    private void TriggerOnPieceRemovedRpc(int x, int y)
+    {
+        OnPieceRemoved?.Invoke(this, new Vector2Int(x, y));
+    }
 
-    //private void TriggerOnCurrentPlayablePlayerTypeChangedRpc()
-    //{
-    //    OnCurrentPlayblePlayerTypeChanged?.Invoke(this, EventArgs.Empty);
-    //}
 
     private bool TestWinnerLine(Line line)
     {
-        return TestWinnerLine(
-            playerTypeArray[line.gridVector2Int[0].x , line.gridVector2Int[0].y] ,
-            playerTypeArray[line.gridVector2Int[1].x , line.gridVector2Int[1].y] ,
-            playerTypeArray[line.gridVector2Int[2].x , line.gridVector2Int[2].y]
-            );
+        if (line.gridVector2Int == null || line.gridVector2Int.Count == 0) return false;
 
+        PlayerType first = playerTypeArray[line.gridVector2Int[0].x, line.gridVector2Int[0].y];
+        if (first == PlayerType.None) return false;
+
+        for (int i = 1; i < line.gridVector2Int.Count; i++)
+        {
+            if (playerTypeArray[line.gridVector2Int[i].x, line.gridVector2Int[i].y] != first)
+                return false;
+        }
+        return true;
     }
 
-    private bool TestWinnerLine(PlayerType aPlayerType , PlayerType bPlayerType , PlayerType cPlayertype)
-    {
-        return
-            aPlayerType != PlayerType.None && aPlayerType == bPlayerType && bPlayerType == cPlayertype;
-    }
     private void TestWinner()
     {
-        //foreach(Line line in lineList)
         for(int i = 0; i < lineList.Count; i++)
         {
             Line line = lineList[i];
@@ -313,7 +518,6 @@ public class GameManager : NetworkBehaviour
                 currentTurnPlayerType.Value = PlayerType.None;
 
                 PlayerType winPlayerType = playerTypeArray[line.centerPos.x, line.centerPos.y];
-
 
                 switch(winPlayerType)
                 {
@@ -325,36 +529,37 @@ public class GameManager : NetworkBehaviour
                         break;
                 }
 
-
                 TriggerOnGameWinRpc(i , winPlayerType);
 
-
                 return;
-                //break;
             }
-            
-
         }
 
+        // Tie detection: only check valid cells
         bool hasTie = true;
-        for(int x = 0; x < playerTypeArray.GetLength(0); x++)
+        int gridWidth = boardConfig != null ? boardConfig.width : 3;
+        int gridHeight = boardConfig != null ? boardConfig.height : 3;
+
+        for(int x = 0; x < gridWidth; x++)
         {
-            for(int y = 0; y < playerTypeArray.GetLength(1); y++)
+            for(int y = 0; y < gridHeight; y++)
             {
+                // Skip invalid cells
+                if (boardConfig != null && !boardConfig.IsCellValid(x, y)) continue;
+
                 if(playerTypeArray[x,y] == PlayerType.None)
                 {
                     hasTie = false;
                     break;
                 }
             }
+            if (!hasTie) break;
         }
 
         if (hasTie)
         {
             TriggerOnGameTieRpc();
         }
-
-
     }
 
     [Rpc(SendTo.ClientsAndHost)]
@@ -371,24 +576,24 @@ public class GameManager : NetworkBehaviour
         OnGameTie?.Invoke(this, EventArgs.Empty);
     }
 
-    //CANT SAND COMPLEX TYPES VIA RPC, SO INVOKE DIRECTLY
-    //STRUCT NOT SUPPORTED
-    //[Rpc(SendTo.ClientsAndHost)]
-    //private void TriggerOnGameWinRpc(Line line)
-    //{
-    //    OnGameWin?.Invoke(this, new OnGameWinEventArgs { line = line });
-    //}
     [Rpc(SendTo.Server)]
     public void RematchRpc()
     {
-        
-        for(int x = 0; x < playerTypeArray.GetLength(0); x++)
+        int gridWidth = boardConfig != null ? boardConfig.width : 3;
+        int gridHeight = boardConfig != null ? boardConfig.height : 3;
+
+        for(int x = 0; x < gridWidth; x++)
         {
-            for(int y = 0; y < playerTypeArray.GetLength(1); y++)
+            for(int y = 0; y < gridHeight; y++)
             {
                 playerTypeArray[x, y] = PlayerType.None;
             }
         }
+
+        crossPieceQueue.Clear();
+        circlePieceQueue.Clear();
+
+
         currentTurnPlayerType.Value = PlayerType.Cross;
         TriggerOnRematchRpc();
     }
@@ -398,9 +603,6 @@ public class GameManager : NetworkBehaviour
     {
         OnRematch?.Invoke(this, EventArgs.Empty);
     }
-
-
-    
 
     public PlayerType GetLocalplayerType()
     {
@@ -417,5 +619,56 @@ public class GameManager : NetworkBehaviour
         playerCrossScore = this.playerCrossScore.Value;
         playerCircleScore = this.playerCircleScore.Value;
     }
+
+
+    public bool IsCellEmpty(int x, int y)
+    {
+        // Safety check
+        if (playerTypeArray == null) return false;
+        if (x < 0 || x >= playerTypeArray.GetLength(0) || y < 0 || y >= playerTypeArray.GetLength(1)) return false;
+
+        return playerTypeArray[x, y] == PlayerType.None;
+    }
+
+
+
+    public override void OnNetworkDespawn()
+    {
+        if(NetworkManager.Singleton != null)
+        {
+            NetworkManager.Singleton.OnClientDisconnectCallback -= NetworkManager_OnClientDisconnectCallback;
+            NetworkManager.Singleton.OnClientConnectedCallback -= NetworkManager_OnClientConnectedCallback;
+        }
+    }
+
+    private void NetworkManager_OnClientDisconnectCallback(ulong clientId)
+    {
+        Debug.Log($"Client disconnected: {clientId}");
+
+        // Don't show the disconnect panel if we chose to leave
+        if (IsIntentionalDisconnect) return;
+
+
+        OnPlayerDisconnect?.Invoke(this, EventArgs.Empty);
+    }
+
+    private void OnDestroy()
+    {
+
+        if (instance == this)
+        {
+            instance = null;
+        }
+
+
+        IsIntentionalDisconnect = false;
+    }
+
+
+    public void DiconnectFromGame()
+    {
+        NetworkManager.Singleton.Shutdown();
+        OnPlayerDisconnect?.Invoke(this, EventArgs.Empty);
+
+    }
 }
- 

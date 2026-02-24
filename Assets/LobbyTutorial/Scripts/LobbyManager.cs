@@ -39,8 +39,10 @@ public class LobbyManager : MonoBehaviour {
 
 
     public enum GameMode {
-        CaptureTheFlag,
-        Conquest
+        Classic3x3,
+        PyramidXO,
+        Board4x4,
+        FadingXO
     }
 
     public enum PlayerCharacter {
@@ -50,6 +52,13 @@ public class LobbyManager : MonoBehaviour {
     }
 
 
+
+
+    public static GameMode SelectedGameMode { get; private set; } = GameMode.Classic3x3;
+
+
+    public static string CrossPlayerName { get; private set; } = "Player 1";
+    public static string CirclePlayerName { get; private set; } = "Player 2";
 
     private float heartbeatTimer;
     private float lobbyPollTimer;
@@ -134,7 +143,7 @@ public class LobbyManager : MonoBehaviour {
                     OnKickedFromLobby?.Invoke(this, new LobbyEventArgs { lobby = joinedLobby });
 
                     joinedLobby = null;
-                    isStartingGame = false; // Unlock the game start lock in case we got kicked while trying to start the game
+                    isStartingGame = false;
                 }
 
 
@@ -142,20 +151,30 @@ public class LobbyManager : MonoBehaviour {
                 {
                     bool gameAlreadyStarted = joinedLobby.Data.ContainsKey(KEY_START_GAME) && joinedLobby.Data[KEY_START_GAME].Value != "0";
 
-                    // Check that the game hasn't started AND we aren't currently trying to start it
+
                     if (!gameAlreadyStarted && !isStartingGame)
                     {
                         Debug.Log("Lobby is full! Auto-starting game...");
-                        isStartingGame = true; // Lock it! 
+                        isStartingGame = true;
                         StartGame();
                     }
                 }
                 // -----------------------------
 
-                // Check if the game has been started by the Host
+
                 if (joinedLobby.Data.ContainsKey(KEY_START_GAME) && joinedLobby.Data[KEY_START_GAME].Value != "0")
                 {
-                    // Game has been started, the value of KEY_START_GAME is the relay code
+
+                    if (joinedLobby.Data.ContainsKey(KEY_GAME_MODE))
+                    {
+                        SelectedGameMode = Enum.Parse<GameMode>(joinedLobby.Data[KEY_GAME_MODE].Value);
+                        Debug.Log($"LobbyManager: SelectedGameMode set to {SelectedGameMode}");
+                    }
+
+
+                    SavePlayerNamesFromLobby();
+
+
                     if (!IsLobbyHost())
                     {
                         RelayServiceGame.Instance.JoinRelay(joinedLobby.Data[KEY_START_GAME].Value);
@@ -171,6 +190,26 @@ public class LobbyManager : MonoBehaviour {
 
     public Lobby GetJoinedLobby() {
         return joinedLobby;
+    }
+
+
+    private void SavePlayerNamesFromLobby()
+    {
+        if (joinedLobby == null || joinedLobby.Players == null) return;
+
+        for (int i = 0; i < joinedLobby.Players.Count; i++)
+        {
+            var player = joinedLobby.Players[i];
+            if (player.Data != null && player.Data.ContainsKey(KEY_PLAYER_NAME))
+            {
+                string name = player.Data[KEY_PLAYER_NAME].Value;
+                if (i == 0)
+                    CrossPlayerName = name;
+                else if (i == 1)
+                    CirclePlayerName = name;
+            }
+        }
+        Debug.Log($"LobbyManager: Saved player names — Cross: '{CrossPlayerName}', Circle: '{CirclePlayerName}'");
     }
 
     public bool IsLobbyHost() {
@@ -203,11 +242,17 @@ public class LobbyManager : MonoBehaviour {
 
             switch (gameMode) {
                 default:
-                case GameMode.CaptureTheFlag:
-                    gameMode = GameMode.Conquest;
+                case GameMode.Classic3x3:
+                    gameMode = GameMode.PyramidXO;
                     break;
-                case GameMode.Conquest:
-                    gameMode = GameMode.CaptureTheFlag;
+                case GameMode.PyramidXO:
+                    gameMode = GameMode.Board4x4;
+                    break;
+                case GameMode.Board4x4:
+                    gameMode = GameMode.FadingXO;
+                    break;
+                case GameMode.FadingXO:
+                    gameMode = GameMode.Classic3x3;
                     break;
             }
 
@@ -357,7 +402,7 @@ public class LobbyManager : MonoBehaviour {
                 await LobbyService.Instance.RemovePlayerAsync(joinedLobby.Id, AuthenticationService.Instance.PlayerId);
 
                 joinedLobby = null;
-                isStartingGame = false; // Unlock the game start lock in case we left while trying to start the game
+                isStartingGame = false;
 
                 OnLeftLobby?.Invoke(this, EventArgs.Empty);
             } catch (LobbyServiceException e) {
@@ -402,6 +447,17 @@ public class LobbyManager : MonoBehaviour {
             try
             {
                 Debug.Log("StartGame");
+
+
+                if (joinedLobby.Data.ContainsKey(KEY_GAME_MODE))
+                {
+                    SelectedGameMode = Enum.Parse<GameMode>(joinedLobby.Data[KEY_GAME_MODE].Value);
+                    Debug.Log($"LobbyManager Host: SelectedGameMode set to {SelectedGameMode}");
+                }
+
+
+                SavePlayerNamesFromLobby();
+
                 string relayCode = await RelayServiceGame.Instance.CreateRelay();
 
                 Lobby lobby = await LobbyService.Instance.UpdateLobbyAsync(joinedLobby.Id, new UpdateLobbyOptions
