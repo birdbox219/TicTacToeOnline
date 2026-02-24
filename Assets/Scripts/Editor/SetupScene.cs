@@ -8,24 +8,21 @@ public class SetupScene
     {
         var sb = new System.Text.StringBuilder();
         
-        // ── Step 1: Create GridLine prefab from existing Line object ──
-        // Find the first Line object to use as a template
+        // Create GridLine prefab from existing Line object
         GameObject lineTemplate = GameObject.Find("Line");
         if (lineTemplate != null)
         {
-            // Create a copy for the prefab
             GameObject linePrefab = Object.Instantiate(lineTemplate);
             linePrefab.name = "GridLine";
-            // Reset transform
+
             linePrefab.transform.position = Vector3.zero;
             linePrefab.transform.rotation = Quaternion.identity;
             linePrefab.transform.localScale = new Vector3(6f, 1f, 1f);
             
-            // Create Prefabs folder if needed
-            if (!AssetDatabase.IsValidFolder("Assets/Prefabs"))
+
                 AssetDatabase.CreateFolder("Assets", "Prefabs");
             
-            // Save as prefab
+
             string prefabPath = "Assets/Prefabs/GridLine.prefab";
             PrefabUtility.SaveAsPrefabAsset(linePrefab, prefabPath);
             Object.DestroyImmediate(linePrefab);
@@ -36,14 +33,14 @@ public class SetupScene
             sb.AppendLine("WARNING: Could not find 'Line' object to create GridLine prefab");
         }
         
-        // ── Step 2: Create GridSpawner GameObject ──
+        // Create GridSpawner GameObject
         GameObject gridSpawnerGO = new GameObject("GridSpawner");
         GridSpawner spawner = gridSpawnerGO.AddComponent<GridSpawner>();
         
-        // Wire prefab references via SerializedObject
+
         SerializedObject spawnerSO = new SerializedObject(spawner);
         
-        // Set gridCellPrefab to Assets/Prefabs/GridPos.prefab
+
         GameObject gridPosPrefab = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Prefabs/GridPos.prefab");
         if (gridPosPrefab != null)
         {
@@ -55,7 +52,7 @@ public class SetupScene
             sb.AppendLine("WARNING: GridPos.prefab not found at Assets/Prefabs/GridPos.prefab");
         }
         
-        // Set gridLinePrefab to Assets/Prefabs/GridLine.prefab
+
         GameObject gridLinePrefab = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Prefabs/GridLine.prefab");
         if (gridLinePrefab != null)
         {
@@ -69,7 +66,7 @@ public class SetupScene
         
         spawnerSO.ApplyModifiedProperties();
         
-        // ── Step 3: Wire GameManager references ──
+        // Wire GameManager references
         GameObject gmGO = GameObject.Find("GameManager");
         if (gmGO != null)
         {
@@ -78,7 +75,7 @@ public class SetupScene
             {
                 SerializedObject gmSO = new SerializedObject(gm);
                 
-                // Set boardConfig
+
                 BoardConfig config = AssetDatabase.LoadAssetAtPath<BoardConfig>("Assets/BoardConfigs/Classic_3x3.asset");
                 if (config != null)
                 {
@@ -86,7 +83,7 @@ public class SetupScene
                     sb.AppendLine("Wired Classic_3x3 BoardConfig to GameManager.boardConfig");
                 }
                 
-                // Set gridSpawner
+
                 gmSO.FindProperty("gridSpawner").objectReferenceValue = spawner;
                 sb.AppendLine("Wired GridSpawner to GameManager.gridSpawner");
                 
@@ -98,7 +95,7 @@ public class SetupScene
             sb.AppendLine("WARNING: GameManager not found in scene");
         }
         
-        // ── Step 4: Remove old manual GridPos objects ──
+        // Remove old manual GridPos objects
         string[] gridPosNames = {
             "GridPos_0_0", "GridPos_0_1", "GridPos_0_2",
             "GridPos_1_0", "GridPos_1_1", "GridPos_1_2",
@@ -117,7 +114,7 @@ public class SetupScene
         }
         sb.AppendLine($"Removed {removedGridPos} old GridPos objects");
         
-        // ── Step 5: Remove old manual Line objects ──
+        // Remove old manual Line objects
         string[] lineNames = { "Line", "Line (1)", "Line (2)", "Line (3)" };
         int removedLines = 0;
         foreach (string name in lineNames)
@@ -131,7 +128,7 @@ public class SetupScene
         }
         sb.AppendLine($"Removed {removedLines} old Line objects");
         
-        // ── Step 6: Mark scene dirty so it can be saved ──
+        // Mark scene dirty
         UnityEditor.SceneManagement.EditorSceneManager.MarkSceneDirty(
             UnityEditor.SceneManagement.EditorSceneManager.GetActiveScene()
         );

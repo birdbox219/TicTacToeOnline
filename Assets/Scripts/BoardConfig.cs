@@ -10,9 +10,7 @@ public class BoardConfig : ScriptableObject
     public float cellSpacing = 3.1f;
     public bool[] validCells;
 
-    /// <summary>
-    /// Check if a cell coordinate is within bounds and valid for play.
-    /// </summary>
+
     public bool IsCellValid(int x, int y)
     {
         if (x < 0 || x >= width || y < 0 || y >= height) return false;
@@ -20,9 +18,7 @@ public class BoardConfig : ScriptableObject
         return validCells[y * width + x];
     }
 
-    /// <summary>
-    /// Count of playable cells on this board.
-    /// </summary>
+
     public int GetValidCellCount()
     {
         if (validCells == null || validCells.Length != width * height)
@@ -37,9 +33,7 @@ public class BoardConfig : ScriptableObject
     }
 
 #if UNITY_EDITOR
-    /// <summary>
-    /// Editor helper: reset validCells to all-true for current width/height.
-    /// </summary>
+
     [ContextMenu("Reset Valid Cells (All True)")]
     private void ResetValidCells()
     {

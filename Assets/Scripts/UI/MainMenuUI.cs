@@ -15,13 +15,13 @@ public class MainMenuUI : MonoBehaviour
 
     private void Start()
     {
-        // Start with lobby hidden, main menu visible
+
         _lobbyListUI.SetActive(false);
 
         _playButton.gameObject.SetActive(true);
         _quitButton.gameObject.SetActive(true);
 
-        // Staggered entrance animation for main menu buttons
+
         PlayEntranceAnimation();
 
         _playButton.onClick.AddListener(() =>
@@ -42,7 +42,7 @@ public class MainMenuUI : MonoBehaviour
 
     private void PlayEntranceAnimation()
     {
-        // Staggered pop-in for each button
+
         _playButton.transform.localScale = Vector3.zero;
         _quitButton.transform.localScale = Vector3.zero;
 
@@ -54,17 +54,17 @@ public class MainMenuUI : MonoBehaviour
     {
         _isTransitioning = true;
 
-        // Kill any active animations
+
         _playButton.transform.DOKill();
         _quitButton.transform.DOKill();
 
-        // Hide lobby, show main menu buttons
+
         _lobbyListUI.SetActive(false);
 
         _playButton.gameObject.SetActive(true);
         _quitButton.gameObject.SetActive(true);
 
-        // Stagger button re-entrance
+
         _playButton.transform.localScale = Vector3.zero;
         _quitButton.transform.localScale = Vector3.zero;
         _playButton.transform.DOScale(Vector3.one, 0.4f).SetEase(Ease.OutBack).SetDelay(0.1f);
@@ -76,11 +76,11 @@ public class MainMenuUI : MonoBehaviour
     {
         _isTransitioning = true;
 
-        // Kill any active animations
+
         _playButton.transform.DOKill();
         _quitButton.transform.DOKill();
 
-        // Animate buttons out, then switch
+
         _playButton.transform.DOScale(Vector3.zero, 0.2f).SetEase(Ease.InBack);
         _quitButton.transform.DOScale(Vector3.zero, 0.2f).SetEase(Ease.InBack)
             .OnComplete(() =>
@@ -88,7 +88,7 @@ public class MainMenuUI : MonoBehaviour
                 _playButton.gameObject.SetActive(false);
                 _quitButton.gameObject.SetActive(false);
 
-                // Show lobby
+
                 _lobbyListUI.SetActive(true);
                 _isTransitioning = false;
             });

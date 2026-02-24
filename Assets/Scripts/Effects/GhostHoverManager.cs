@@ -12,7 +12,7 @@ public class GhostHoverManager : MonoBehaviour
     [SerializeField] private Sprite crossSprite;
     [SerializeField] private Sprite circleSprite;
 
-    // --- NEW: Track the currently hovered cell ---
+
     private bool isHoveringCell = false;
     private int currentHoverX;
     private int currentHoverY;
@@ -20,16 +20,13 @@ public class GhostHoverManager : MonoBehaviour
 
     private void OnEnable()
     {
-        // Listen to the mouse entering and exiting cells
         GridPos.OnHoverEnter += GridPos_OnHoverEnter;
         GridPos.OnHoverExit += GridPos_OnHoverExit;
 
-        // Listen to game state changes
         if (GameManager.instance != null)
         {
             GameManager.instance.OnPlaceObject += GameManager_OnPlaceObject;
 
-            // --- NEW: Listen for when the turn changes ---
             GameManager.instance.OnCurrentPlayblePlayerTypeChanged += GameManager_OnTurnChanged;
         }
     }
@@ -52,10 +49,9 @@ public class GhostHoverManager : MonoBehaviour
         transform.localScale = new Vector3(2.6f, 2.6f, 1f);
     }
 
-    // --- NEW: Triggered the moment the turn switches ---
+
     private void GameManager_OnTurnChanged(object sender, EventArgs e)
     {
-        // If our mouse is already resting on a cell when our turn starts, manually refresh the ghost!
         if (isHoveringCell)
         {
             GridPos_OnHoverEnter(currentHoverX, currentHoverY, currentHoverPos);
@@ -64,29 +60,26 @@ public class GhostHoverManager : MonoBehaviour
 
     private void GridPos_OnHoverEnter(int x, int y, Vector3 cellWorldPosition)
     {
-        // --- NEW: Remember where the mouse currently is ---
+
         isHoveringCell = true;
         currentHoverX = x;
         currentHoverY = y;
         currentHoverPos = cellWorldPosition;
 
-        // 1. Don't show the ghost if it is NOT our turn
         if (GameManager.instance.GetCurrentTurnPlayerType() != GameManager.instance.GetLocalplayerType())
             return;
 
-        // 2. Don't show the ghost if the cell is already taken
         if (!GameManager.instance.IsCellEmpty(x, y))
         {
             HideGhost();
             return;
         }
 
-        // 3. Assign the correct sprite depending on who we are playing as
         ghostSpriteRenderer.sprite = GameManager.instance.GetLocalplayerType() == GameManager.PlayerType.Cross
             ? crossSprite
             : circleSprite;
 
-        // 4. Smoothly Glide and Fade in!
+
         if (ghostSpriteRenderer.color.a == 0f)
         {
             transform.position = cellWorldPosition;
@@ -102,7 +95,7 @@ public class GhostHoverManager : MonoBehaviour
 
     private void GridPos_OnHoverExit()
     {
-        // --- NEW: Forget the hovered cell when we leave it ---
+
         isHoveringCell = false;
         HideGhost();
     }

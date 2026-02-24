@@ -12,14 +12,10 @@ public class GameManager : NetworkBehaviour
 
     public static GameManager instance { get; private set; }
 
-    // ── Intentional Disconnect Flag ──
-    // Set to true before calling Shutdown() so the disconnect callback knows not to show the panel.
+
     public static bool IsIntentionalDisconnect { get; private set; } = false;
 
-    /// <summary>
-    /// Centralized method for intentionally leaving a game.
-    /// All "return to menu" paths should call this.
-    /// </summary>
+
     public static void DisconnectAndReturnToMenu()
     {
         IsIntentionalDisconnect = true;
@@ -30,8 +26,6 @@ public class GameManager : NetworkBehaviour
             LobbyManager.Instance.LeaveLobby();
         }
 
-        // 2. Shut down Netcode — but DON'T load the scene yet!
-        //    Shutdown() is async; we wait for it to finish via OnClientStopped.
         if (NetworkManager.Singleton != null && NetworkManager.Singleton.IsListening)
         {
             NetworkManager.Singleton.OnClientStopped += OnClientStopped;
@@ -39,15 +33,12 @@ public class GameManager : NetworkBehaviour
         }
         else
         {
-            // NetworkManager is already stopped (e.g. host left), just go to menu
+            // NetworkManager is already stopped, just go to menu
             SceneManager.LoadScene("LobbyTutorial_Done");
         }
     }
 
-    /// <summary>
-    /// Called by NetworkManager once Shutdown() has fully completed.
-    /// Only NOW is it safe to load the lobby scene.
-    /// </summary>
+
     private static void OnClientStopped(bool wasHost)
     {
         if (NetworkManager.Singleton != null)
@@ -55,11 +46,10 @@ public class GameManager : NetworkBehaviour
             NetworkManager.Singleton.OnClientStopped -= OnClientStopped;
         }
 
-        // NOW it's safe to load the menu scene
         SceneManager.LoadScene("LobbyTutorial_Done");
     }
 
-    // ── Board Configuration ──
+
     [Header("Board Configuration")]
     [SerializeField] private BoardConfig[] boardConfigs;  // All available board configs
     [SerializeField] private GridSpawner gridSpawner;
@@ -67,10 +57,7 @@ public class GameManager : NetworkBehaviour
     private BoardConfig boardConfig;  // The currently active config
     public BoardConfig ActiveBoardConfig => boardConfig;
 
-    /// <summary>
-    /// Select a BoardConfig by GameMode name (matches BoardConfig.modeName).
-    /// Call this BEFORE the game starts (e.g. from lobby flow).
-    /// </summary>
+
     public void SetBoardConfig(LobbyManager.GameMode gameMode)
     {
         string targetName = gameMode switch
@@ -185,10 +172,7 @@ public class GameManager : NetworkBehaviour
         }
     }
 
-    /// <summary>
-    /// Initialize (or reinitialize) the board from the current BoardConfig.
-    /// Called from Awake and can be called again after SetBoardConfig.
-    /// </summary>
+
     public void InitializeBoard()
     {
         if (boardConfig == null)
@@ -203,13 +187,13 @@ public class GameManager : NetworkBehaviour
             lineList = GenerateWinLines(boardConfig);
         }
 
-        // Spawn the grid at runtime
+        // Spawn the grid
         if (gridSpawner != null && boardConfig != null)
         {
             gridSpawner.SpawnGrid(boardConfig);
         }
 
-        // Notify the visual manager to refresh its cached config
+
         GameVisualManager visualManager = FindObjectOfType<GameVisualManager>();
         if (visualManager != null)
         {
@@ -217,15 +201,12 @@ public class GameManager : NetworkBehaviour
         }
     }
 
-    /// <summary>
-    /// Generate all possible winning lines for a given BoardConfig.
-    /// Scans horizontal, vertical, and both diagonal directions.
-    /// </summary>
+
     private List<Line> GenerateWinLines(BoardConfig config)
     {
         List<Line> lines = new List<Line>();
 
-        // Direction vectors: right, down, diagonal-down-right, diagonal-down-left
+
         Vector2Int[] directions = new Vector2Int[]
         {
             new Vector2Int(1, 0),  // Horizontal
@@ -251,7 +232,7 @@ public class GameManager : NetworkBehaviour
             {
                 for (int x = 0; x < config.width; x++)
                 {
-                    // Check if a line of winLength fits starting from (x, y) in direction dir
+
                     List<Vector2Int> positions = new List<Vector2Int>();
                     bool allValid = true;
 
@@ -277,7 +258,7 @@ public class GameManager : NetworkBehaviour
 
                     if (allValid && positions.Count == config.winLength)
                     {
-                        // Center position is the middle element
+                        // Center position
                         Vector2Int center = positions[config.winLength / 2];
 
                         lines.Add(new Line
@@ -295,9 +276,7 @@ public class GameManager : NetworkBehaviour
         return lines;
     }
 
-    /// <summary>
-    /// Fallback: hardcoded 3x3 lines if no BoardConfig is assigned.
-    /// </summary>
+
     private List<Line> GenerateFallbackLines()
     {
         return new List<Line>
@@ -362,7 +341,6 @@ public class GameManager : NetworkBehaviour
         Debug.Log($"On NetworkSpawn : {NetworkManager.Singleton.LocalClientId}");
 
         // Initialize board from the lobby's selected game mode
-        // By this point, LobbyManager.SelectedGameMode is set for both host and client
         SetBoardConfig(LobbyManager.SelectedGameMode);
         InitializeBoard();
 
@@ -460,9 +438,7 @@ public class GameManager : NetworkBehaviour
         TriggerOnPlaceObjectRpc();
 
 
-        // ==========================================
-        // --- NEW: Fading XO Cleanup Phase ---
-        // ==========================================
+        // ── Fading XO Cleanup ──
         bool isFadingMode = (boardConfig != null && boardConfig.modeName == "Fading XO");
 
         if (isFadingMode)
@@ -470,19 +446,18 @@ public class GameManager : NetworkBehaviour
             Queue<Vector2Int> activeQueue = (playerType == PlayerType.Cross) ? crossPieceQueue : circlePieceQueue;
             activeQueue.Enqueue(new Vector2Int(x, y));
 
-            // If they just placed their 4th piece, remove their 1st piece!
+
             if (activeQueue.Count > 3)
             {
                 Vector2Int oldestPiece = activeQueue.Dequeue();
 
-                // Erase it from the server's brain so it can't win
+                // Clear the cell
                 playerTypeArray[oldestPiece.x, oldestPiece.y] = PlayerType.None;
 
-                // Tell all clients to visually delete it
-                TriggerOnPieceRemovedRpc(oldestPiece.x, oldestPiece.y);
+
             }
         }
-        // ==========================================
+
 
         OnClickOnGridPosition?.Invoke(this, new OnClickOnGridPositionEventArgs(x, y)
         {
@@ -516,9 +491,7 @@ public class GameManager : NetworkBehaviour
         OnPieceRemoved?.Invoke(this, new Vector2Int(x, y));
     }
 
-    /// <summary>
-    /// Test if a single line is a winner. Works for any winLength.
-    /// </summary>
+
     private bool TestWinnerLine(Line line)
     {
         if (line.gridVector2Int == null || line.gridVector2Int.Count == 0) return false;
@@ -562,7 +535,7 @@ public class GameManager : NetworkBehaviour
             }
         }
 
-        // ── Tie detection: only check valid cells ──
+        // Tie detection: only check valid cells
         bool hasTie = true;
         int gridWidth = boardConfig != null ? boardConfig.width : 3;
         int gridHeight = boardConfig != null ? boardConfig.height : 3;
@@ -571,7 +544,7 @@ public class GameManager : NetworkBehaviour
         {
             for(int y = 0; y < gridHeight; y++)
             {
-                // Skip invalid cells in non-rectangular boards
+                // Skip invalid cells
                 if (boardConfig != null && !boardConfig.IsCellValid(x, y)) continue;
 
                 if(playerTypeArray[x,y] == PlayerType.None)
@@ -650,11 +623,10 @@ public class GameManager : NetworkBehaviour
 
     public bool IsCellEmpty(int x, int y)
     {
-        // Safety check to ensure we don't go out of bounds
+        // Safety check
         if (playerTypeArray == null) return false;
         if (x < 0 || x >= playerTypeArray.GetLength(0) || y < 0 || y >= playerTypeArray.GetLength(1)) return false;
 
-        // Return true if the cell is completely empty
         return playerTypeArray[x, y] == PlayerType.None;
     }
 
@@ -673,22 +645,22 @@ public class GameManager : NetworkBehaviour
     {
         Debug.Log($"Client disconnected: {clientId}");
 
-        // Don't show the disconnect panel if WE chose to leave
+        // Don't show the disconnect panel if we chose to leave
         if (IsIntentionalDisconnect) return;
 
-        // If we get here, someone disconnected unexpectedly — show the panel
+
         OnPlayerDisconnect?.Invoke(this, EventArgs.Empty);
     }
 
     private void OnDestroy()
     {
-        // Reset the singleton so stale references don't linger after scene loads
+
         if (instance == this)
         {
             instance = null;
         }
 
-        // Reset the flag for the next session
+
         IsIntentionalDisconnect = false;
     }
 

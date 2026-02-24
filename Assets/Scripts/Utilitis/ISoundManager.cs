@@ -1,6 +1,6 @@
 ﻿using UnityEngine;
 
-// 1. I wrote the Enum based on your file names in the screenshot
+
 public enum SoundType
 {
     AdjustingAudioLevel, //UI
@@ -136,7 +136,7 @@ public class ISoundManager : MonoBehaviour
         if (Instance == null) return;
         if (Instance.sfxSource == null) return;
 
-        // Safety check to prevent crashing if you forgot to drag a clip
+
         int index = (int)sound;
         if (index >= Instance.soundList.Length)
         {
@@ -150,21 +150,20 @@ public class ISoundManager : MonoBehaviour
         );
     }
 
-    /* VOICE OVER (NEW) */
+    /* VOICE OVER */
 
     public static void PlayVoice(AudioClip clip, float volume = 1f)
     {
         if (Instance == null) return;
         if (Instance.voiceSource == null) return;
 
-        // Stop any currently playing voice so they don't overlap messy
+
         Instance.voiceSource.Stop();
 
         Instance.voiceSource.PlayOneShot(clip, volume);
     }
 
-    // Optional: Overload to play by reference if you store Voices in a list too
-    // But usually Voice Overs are specific to the moment, so passing the Clip is easier.
+
 
 
     public static void PlayMusic(MusicType Music, float volume = 1f)
@@ -172,8 +171,6 @@ public class ISoundManager : MonoBehaviour
         if (Instance == null) return;
         if (Instance.musicSource == null) return;
 
-        // 1. Reset the stopped flags so the script knows we want music to play again
-        Instance.musicStopped = false;
         Instance.playlistActive = true;
 
         // Stop current music to prevent overlap
@@ -186,13 +183,11 @@ public class ISoundManager : MonoBehaviour
             return;
         }
 
-        // 2. Sync the playlist index so HandlePlaylist() knows where we are in the list
         Instance.currentMusicIndex = index;
 
         Instance.musicSource.clip = Instance.musicList[index];
         Instance.musicSource.volume = volume;
 
-        // 3. Ensure looping is disabled so HandlePlaylist() can advance to the next track when this one ends
         Instance.musicSource.loop = false;
 
         Instance.musicSource.Play();

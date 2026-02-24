@@ -1,10 +1,7 @@
 using System.Collections.Generic;
 using UnityEngine;
 
-/// <summary>
-/// Spawns grid cells and grid lines at runtime based on a BoardConfig.
-/// Replaces manually-placed GridPos objects and Line sprites in the scene.
-/// </summary>
+
 public class GridSpawner : MonoBehaviour
 {
     [SerializeField] private GameObject gridCellPrefab;   // Assets/Prefabs/GridPos.prefab
@@ -12,10 +9,7 @@ public class GridSpawner : MonoBehaviour
 
     private List<GameObject> spawnedObjects = new List<GameObject>();
 
-    /// <summary>
-    /// Spawn the grid for the given BoardConfig.
-    /// Creates grid cells at calculated world positions, and grid lines between them.
-    /// </summary>
+
     public void SpawnGrid(BoardConfig config)
     {
         ClearGrid();
@@ -23,7 +17,7 @@ public class GridSpawner : MonoBehaviour
         float offsetX = (config.width - 1) * config.cellSpacing / 2f;
         float offsetY = (config.height - 1) * config.cellSpacing / 2f;
 
-        // Spawn grid cells
+
         for (int y = 0; y < config.height; y++)
         {
             for (int x = 0; x < config.width; x++)
@@ -44,26 +38,20 @@ public class GridSpawner : MonoBehaviour
             }
         }
 
-        // Spawn grid lines between cells
+
         SpawnGridLines(config, offsetX, offsetY);
     }
 
-    /// <summary>
-    /// Spawn cell-border grid lines. Each valid cell gets borders on all 4 sides.
-    /// Shared edges between adjacent valid cells are merged into single line segments.
-    /// This correctly handles any board shape (pyramid, diamond, rectangular, etc).
-    /// </summary>
+
     private void SpawnGridLines(BoardConfig config, float offsetX, float offsetY)
     {
         if (gridLinePrefab == null) return;
 
-        // Helper: is this cell valid? Out-of-bounds = false
+
         bool IsValid(int cx, int cy) =>
             cx >= 0 && cx < config.width && cy >= 0 && cy < config.height && config.IsCellValid(cx, cy);
 
-        // ── Horizontal edge segments ──
-        // For each y boundary (0 to height): draw an edge where at least one
-        // adjacent cell (above or below) is valid. Merge consecutive x into runs.
+        // Horizontal edge segments
         for (int y = 0; y <= config.height; y++)
         {
             int runStart = -1;
@@ -83,9 +71,7 @@ public class GridSpawner : MonoBehaviour
             }
         }
 
-        // ── Vertical edge segments ──
-        // For each x boundary (0 to width): draw an edge where at least one
-        // adjacent cell (left or right) is valid. Merge consecutive y into runs.
+        // Vertical edge segments
         for (int x = 0; x <= config.width; x++)
         {
             int runStart = -1;
@@ -106,11 +92,7 @@ public class GridSpawner : MonoBehaviour
         }
     }
 
-    /// <summary>
-    /// Spawn a single border edge segment.
-    /// - Horizontal: at y boundary, spanning cells runStart..runEnd in x
-    /// - Vertical:   at x boundary, spanning cells runStart..runEnd in y
-    /// </summary>
+
     private void SpawnBorderSegment(BoardConfig config, float offsetX, float offsetY,
         int runStart, int runEnd, int boundary, bool isVertical)
     {
@@ -118,8 +100,8 @@ public class GridSpawner : MonoBehaviour
 
         if (isVertical)
         {
-            // Vertical edge at column boundary 'boundary' (between col boundary-1 and col boundary)
-            // Spans cells runStart..runEnd in y direction
+
+
             float xPos = (boundary - 0.5f) * spacing - offsetX;
             float yCenter = ((runStart + runEnd) / 2f) * spacing - offsetY;
             float segmentLength = (runEnd - runStart + 1) * spacing;
@@ -136,8 +118,8 @@ public class GridSpawner : MonoBehaviour
         }
         else
         {
-            // Horizontal edge at row boundary 'boundary' (between row boundary-1 and row boundary)
-            // Spans cells runStart..runEnd in x direction
+
+
             float yPos = (boundary - 0.5f) * spacing - offsetY;
             float xCenter = ((runStart + runEnd) / 2f) * spacing - offsetX;
             float segmentLength = (runEnd - runStart + 1) * spacing;
@@ -154,9 +136,7 @@ public class GridSpawner : MonoBehaviour
         }
     }
 
-    /// <summary>
-    /// Get the base width of the line sprite (unscaled).
-    /// </summary>
+
     private float GetLineSpriteBaseWidth(GameObject lineObj)
     {
         SpriteRenderer sr = lineObj.GetComponent<SpriteRenderer>();
@@ -164,12 +144,10 @@ public class GridSpawner : MonoBehaviour
         {
             return sr.sprite.bounds.size.x;
         }
-        return 1f; // fallback
+        return 1f;
     }
 
-    /// <summary>
-    /// Clear all spawned grid objects.
-    /// </summary>
+
     public void ClearGrid()
     {
         foreach (GameObject obj in spawnedObjects)
@@ -179,9 +157,7 @@ public class GridSpawner : MonoBehaviour
         spawnedObjects.Clear();
     }
 
-    /// <summary>
-    /// Calculate world position for a grid cell.
-    /// </summary>
+
     public static Vector2 GetWorldPosition(int x, int y, float cellSpacing, float offsetX, float offsetY)
     {
         return new Vector2(x * cellSpacing - offsetX, y * cellSpacing - offsetY);

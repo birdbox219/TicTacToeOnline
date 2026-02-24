@@ -14,7 +14,7 @@ public class GameVisualManager : NetworkBehaviour
     private List<GameObject> visualGameObjectList;
     private Dictionary<Vector2Int, SpawnAnimation> pieceMap;
 
-    // Cached board config values
+
     private float cellSpacing = 3.1f;
     private float offsetX;
     private float offsetY;
@@ -39,10 +39,7 @@ public class GameVisualManager : NetworkBehaviour
 
     
 
-    /// <summary>
-    /// Called by GameManager after InitializeBoard() to sync the visual config.
-    /// Also called lazily on first use of GetWorldPosition.
-    /// </summary>
+
     public void RefreshBoardConfig()
     {
         BoardConfig config = GameManager.instance?.ActiveBoardConfig;
@@ -55,7 +52,7 @@ public class GameVisualManager : NetworkBehaviour
         }
         else
         {
-            // Fallback: 3x3 with old spacing
+            // Fallback: 3x3
             cellSpacing = 3.1f;
             offsetX = (3 - 1) * cellSpacing / 2f;
             offsetY = (3 - 1) * cellSpacing / 2f;
@@ -85,20 +82,17 @@ public class GameVisualManager : NetworkBehaviour
             return;
         }
 
-        // Calculate rotation from the line direction, instead of hardcoded enum cases
+
         float angle = CalculateLineAngle(e.line);
         Quaternion rotation = Quaternion.Euler(0, 0, angle);
 
-        // Calculate scale based on win length
+
         float lineLength = CalculateLineLength(e.line);
 
         Vector2 centerWorldPos = GetWorldPosition(e.line.centerPos.x, e.line.centerPos.y);
         Transform lineCompleteTransform = Instantiate(lineCompletePrefab, centerWorldPos, rotation);
 
-        // Scale the line to match the win length
-        // The original line prefab was sized for 3-in-a-row at spacing 3.1
-        // We scale proportionally
-        float baseLength = 3.1f * 2f; // original 3x3 line covers ~2 spacings
+        float baseLength = 3.1f * 2f;
         float scaleFactor = lineLength / baseLength;
         if (scaleFactor > 0 && lineCompletePrefab.localScale.x > 0)
         {
@@ -118,22 +112,20 @@ public class GameVisualManager : NetworkBehaviour
         {
             Vector2Int gridPos = e.line.gridVector2Int[i];
 
-            // Find the piece at this winning coordinate
+
             if (pieceMap.TryGetValue(gridPos, out SpawnAnimation piece))
             {
-                // Calculate the exact delay so it pops when the line hits it
+
                 float delay = i * (lineDrawTime / (e.line.gridVector2Int.Count - 1));
 
-                // Tell all clients to play the animation for this specific piece
+
                 piece.PlayWinSequenceRpc(delay);
             }
         }
 
     }
 
-    /// <summary>
-    /// Calculate the angle of a win line from its start to end position.
-    /// </summary>
+
     private float CalculateLineAngle(GameManager.Line line)
     {
         if (line.gridVector2Int == null || line.gridVector2Int.Count < 2)
@@ -147,9 +139,7 @@ public class GameVisualManager : NetworkBehaviour
         return Mathf.Atan2(dir.y, dir.x) * Mathf.Rad2Deg;
     }
 
-    /// <summary>
-    /// Calculate the world-space length of a win line.
-    /// </summary>
+
     private float CalculateLineLength(GameManager.Line line)
     {
         if (line.gridVector2Int == null || line.gridVector2Int.Count < 2)
@@ -196,11 +186,7 @@ public class GameVisualManager : NetworkBehaviour
         }
     }
 
-    /// <summary>
-    /// Dynamic world position calculation based on BoardConfig.
-    /// Centers the grid around (0, 0) for any board size.
-    /// Lazily caches config on first call.
-    /// </summary>
+
     private Vector2 GetWorldPosition(int x, int y)
     {
         if (!configCached)
@@ -210,20 +196,19 @@ public class GameVisualManager : NetworkBehaviour
     }
 
 
-    //FAdingXO: New method to handle piece removal with animation
+
     private void Instance_OnPieceRemoved(object sender, Vector2Int gridPos)
     {
         if (pieceMap.TryGetValue(gridPos, out SpawnAnimation pieceAnim))
         {
-            // Remove it from tracking
+            // Remove from tracking
             pieceMap.Remove(gridPos);
             visualGameObjectList.Remove(pieceAnim.gameObject);
 
-            // Make it shrink and spin out of existence, then destroy it!
+
             pieceAnim.transform.DOScale(Vector3.zero, 0.4f).SetEase(Ease.InBack);
             pieceAnim.transform.DORotate(new Vector3(0, 0, -180), 0.4f, RotateMode.FastBeyond360).SetRelative(true);
 
-            // Wait for the animation to finish before actually deleting the GameObject
             Destroy(pieceAnim.gameObject, 0.45f);
         }
     }

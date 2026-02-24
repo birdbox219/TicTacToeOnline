@@ -48,7 +48,7 @@ public class PlayerUI : MonoBehaviour
 
     private void OnDestroy()
     {
-        // Always good practice to unhook events when the object is destroyed!
+
         if (GameManager.instance != null)
         {
             GameManager.instance.OnGameStarted -= Instance_OnGameStarted;
@@ -93,7 +93,7 @@ public class PlayerUI : MonoBehaviour
 
     private void Instance_OnGameStarted(object sender, System.EventArgs e)
     {
-        // Set player names from lobby data
+
         string crossName = LobbyManager.CrossPlayerName;
         string circleName = LobbyManager.CirclePlayerName;
 
@@ -140,7 +140,7 @@ public class PlayerUI : MonoBehaviour
             {
                 crossTmp.text = crossName;
             }
-            // Animate name entrance — pop from zero
+
             crossTouTextGameOject.transform.localScale = Vector3.zero;
             crossTouTextGameOject.transform.DOScale(Vector3.one, 0.4f).SetEase(Ease.OutBack).SetDelay(0.1f);
         }
@@ -152,7 +152,7 @@ public class PlayerUI : MonoBehaviour
             {
                 circleTmp.text = circleName;
             }
-            // Animate name entrance — pop from zero with slight extra delay
+
             circleTouTextGameOject.transform.localScale = Vector3.zero;
             circleTouTextGameOject.transform.DOScale(Vector3.one, 0.4f).SetEase(Ease.OutBack).SetDelay(0.25f);
         }
@@ -197,18 +197,18 @@ public class PlayerUI : MonoBehaviour
     {
         if (GameManager.instance.GetCurrentTurnPlayerType() == GameManager.PlayerType.Cross)
         {
-            // CROSS IS ACTIVE: Big, bouncy, and fully colored
+
             if (crossImage != null)
             {
                 crossImage.transform.DOScale(Vector3.one * 1.3f, 0.4f).SetEase(Ease.OutBack);
-                crossImage.DOColor(Color.white, 0.3f); // Assuming default is full color
+                crossImage.DOColor(Color.white, 0.3f);
             }
 
-            // CIRCLE IS INACTIVE: Shrink down and turn gray/dim
+
             if (circleImage != null)
             {
                 circleImage.transform.DOScale(Vector3.one * 0.8f, 0.3f).SetEase(Ease.OutCubic);
-                circleImage.DOColor(new Color(0.4f, 0.4f, 0.4f, 0.8f), 0.3f); // Grayed out
+                circleImage.DOColor(new Color(0.4f, 0.4f, 0.4f, 0.8f), 0.3f);
             }
 
             if (crossTouTextGameOject != null) crossTouTextGameOject.SetActive(true);
@@ -220,14 +220,14 @@ public class PlayerUI : MonoBehaviour
 
         else if (GameManager.instance.GetCurrentTurnPlayerType() == GameManager.PlayerType.Cricle)
         {
-            // CIRCLE IS ACTIVE
+
             if (circleImage != null)
             {
                 circleImage.transform.DOScale(Vector3.one * 1.3f, 0.4f).SetEase(Ease.OutBack);
                 circleImage.DOColor(Color.white, 0.3f);
             }
 
-            // CROSS IS INACTIVE
+
             if (crossImage != null)
             {
                 crossImage.transform.DOScale(Vector3.one * 0.8f, 0.3f).SetEase(Ease.OutCubic);

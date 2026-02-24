@@ -12,7 +12,6 @@ public class DisconnectUIManager : MonoBehaviour
 
     private void Start()
     {
-        // 1. Ensure the panel starts completely invisible and unclickable
         if (disconnectPanel != null)
         {
             disconnectPanel.alpha = 0f;
@@ -20,7 +19,6 @@ public class DisconnectUIManager : MonoBehaviour
             disconnectPanel.blocksRaycasts = false;
         }
 
-        // 2. Listen for the disconnect event
         if (GameManager.instance != null)
         {
             GameManager.instance.OnPlayerDisconnect += GameManager_OnPlayerDisconnected;
@@ -37,22 +35,19 @@ public class DisconnectUIManager : MonoBehaviour
 
     private void GameManager_OnPlayerDisconnected(object sender, EventArgs e)
     {
-        // Smoothly fade the warning panel in and make it clickable
+
         if (disconnectPanel != null)
         {
             disconnectPanel.interactable = true;
             disconnectPanel.blocksRaycasts = true;
             disconnectPanel.DOFade(1f, 0.4f).OnComplete(() =>
             {
-                // Shake the panel to convey urgency
                 disconnectPanel.transform.DOShakePosition(0.5f, strength: 10f, vibrato: 12, randomness: 90f, snapping: false, fadeOut: true);
             });
         }
     }
 
-    /// <summary>
-    /// Link this to the "Return to Menu" button on your Disconnect Panel.
-    /// </summary>
+
     public void ReturnToMainMenu()
     {
         GameManager.DisconnectAndReturnToMenu();

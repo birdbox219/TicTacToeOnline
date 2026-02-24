@@ -53,11 +53,10 @@ public class LobbyManager : MonoBehaviour {
 
 
 
-    // ── Static game mode selection (survives scene transitions) ──
+
     public static GameMode SelectedGameMode { get; private set; } = GameMode.Classic3x3;
 
-    // ── Static player names (survives scene transitions) ──
-    // Host is always Cross (clientId 0), Client is always Circle
+
     public static string CrossPlayerName { get; private set; } = "Player 1";
     public static string CirclePlayerName { get; private set; } = "Player 2";
 
@@ -144,7 +143,7 @@ public class LobbyManager : MonoBehaviour {
                     OnKickedFromLobby?.Invoke(this, new LobbyEventArgs { lobby = joinedLobby });
 
                     joinedLobby = null;
-                    isStartingGame = false; // Unlock the game start lock in case we got kicked while trying to start the game
+                    isStartingGame = false;
                 }
 
 
@@ -152,30 +151,30 @@ public class LobbyManager : MonoBehaviour {
                 {
                     bool gameAlreadyStarted = joinedLobby.Data.ContainsKey(KEY_START_GAME) && joinedLobby.Data[KEY_START_GAME].Value != "0";
 
-                    // Check that the game hasn't started AND we aren't currently trying to start it
+
                     if (!gameAlreadyStarted && !isStartingGame)
                     {
                         Debug.Log("Lobby is full! Auto-starting game...");
-                        isStartingGame = true; // Lock it! 
+                        isStartingGame = true;
                         StartGame();
                     }
                 }
                 // -----------------------------
 
-                // Check if the game has been started by the Host
+
                 if (joinedLobby.Data.ContainsKey(KEY_START_GAME) && joinedLobby.Data[KEY_START_GAME].Value != "0")
                 {
-                    // Save the selected GameMode before clearing the lobby
+
                     if (joinedLobby.Data.ContainsKey(KEY_GAME_MODE))
                     {
                         SelectedGameMode = Enum.Parse<GameMode>(joinedLobby.Data[KEY_GAME_MODE].Value);
                         Debug.Log($"LobbyManager: SelectedGameMode set to {SelectedGameMode}");
                     }
 
-                    // Save player names before clearing the lobby
+
                     SavePlayerNamesFromLobby();
 
-                    // Game has been started, the value of KEY_START_GAME is the relay code
+
                     if (!IsLobbyHost())
                     {
                         RelayServiceGame.Instance.JoinRelay(joinedLobby.Data[KEY_START_GAME].Value);
@@ -193,10 +192,7 @@ public class LobbyManager : MonoBehaviour {
         return joinedLobby;
     }
 
-    /// <summary>
-    /// Save player names from the lobby data into static properties
-    /// so they survive the scene transition. Host (index 0) = Cross, Client (index 1) = Circle.
-    /// </summary>
+
     private void SavePlayerNamesFromLobby()
     {
         if (joinedLobby == null || joinedLobby.Players == null) return;
@@ -207,9 +203,9 @@ public class LobbyManager : MonoBehaviour {
             if (player.Data != null && player.Data.ContainsKey(KEY_PLAYER_NAME))
             {
                 string name = player.Data[KEY_PLAYER_NAME].Value;
-                if (i == 0) // Host = Cross
+                if (i == 0)
                     CrossPlayerName = name;
-                else if (i == 1) // Client = Circle
+                else if (i == 1)
                     CirclePlayerName = name;
             }
         }
@@ -406,7 +402,7 @@ public class LobbyManager : MonoBehaviour {
                 await LobbyService.Instance.RemovePlayerAsync(joinedLobby.Id, AuthenticationService.Instance.PlayerId);
 
                 joinedLobby = null;
-                isStartingGame = false; // Unlock the game start lock in case we left while trying to start the game
+                isStartingGame = false;
 
                 OnLeftLobby?.Invoke(this, EventArgs.Empty);
             } catch (LobbyServiceException e) {
@@ -452,15 +448,14 @@ public class LobbyManager : MonoBehaviour {
             {
                 Debug.Log("StartGame");
 
-                // Set the selected game mode BEFORE creating relay
-                // so it's available when OnNetworkSpawn fires
+
                 if (joinedLobby.Data.ContainsKey(KEY_GAME_MODE))
                 {
                     SelectedGameMode = Enum.Parse<GameMode>(joinedLobby.Data[KEY_GAME_MODE].Value);
                     Debug.Log($"LobbyManager Host: SelectedGameMode set to {SelectedGameMode}");
                 }
 
-                // Save player names before the lobby gets cleared
+
                 SavePlayerNamesFromLobby();
 
                 string relayCode = await RelayServiceGame.Instance.CreateRelay();

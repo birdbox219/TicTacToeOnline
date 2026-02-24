@@ -3,10 +3,7 @@ using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.UI;
 
-/// <summary>
-/// Drop this on any Button to get juicy hover, press, and click feedback.
-/// Works with DOTween — no manual wiring needed.
-/// </summary>
+
 [RequireComponent(typeof(Button))]
 public class JuicyButton : MonoBehaviour,
     IPointerEnterHandler, IPointerExitHandler,
@@ -34,7 +31,7 @@ public class JuicyButton : MonoBehaviour,
         _originalScale = transform.localScale;
         _button = GetComponent<Button>();
 
-        // Hook into the button click for punch feedback
+
         _button.onClick.AddListener(OnClick);
     }
 
